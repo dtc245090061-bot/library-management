@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.env
+.venv
+venv/
+ENV/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Testing
+.coverage
+htmlcov/
+
+# Config local
+local_settings.py
+
+# Artifacts tạm & backup
+*.pyc
+backend/render_ultra_hd_diagrams_backup.py
+backend/scratch/
+backend/docs/
+backend/temp_render.html
+*.tmp

@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  library-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: library-management
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist SQLite database
+      - library-data:/data
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - SECRET_KEY=${SECRET_KEY:-library-secret-key-change-in-production}
+      - DATABASE_URL=sqlite:////data/library.db
+      - DEFAULT_BORROW_DAYS=${DEFAULT_BORROW_DAYS:-14}
+      - MAX_RENEW_COUNT=${MAX_RENEW_COUNT:-1}
+      - RENEW_DAYS=${RENEW_DAYS:-7}
+      - FINE_PER_DAY=${FINE_PER_DAY:-2000}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  library-data:
+    driver: local
