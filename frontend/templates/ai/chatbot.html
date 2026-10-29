@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 Trợ lý AI Thủ Thư · Thư Viện Thông Minh</title>
+    <meta name="description" content="Trợ lý AI tra cứu sách, tóm tắt và gợi ý cá nhân hóa thông minh">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #FFFFFF;
+        }
+        .app-layout {
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+        .main-content {
+            height: 100vh;
+            max-height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            background: #FFFFFF;
+        }
+        .chat-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - var(--header-h));
+            max-height: calc(100vh - var(--header-h));
+            overflow: hidden;
+        }
+
+        /* Center conversation column */
+        .chat-main-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+            background: #F8FAFC;
+            position: relative;
+        }
+
+        .chat-messages {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-stream-inner {
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 28px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* Message Bubbles */
+        .chat-message {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            animation: messageFadeIn 0.25s var(--ease);
+        }
+        .chat-message.user {
+            flex-direction: row-reverse;
+            align-self: flex-end;
+            max-width: 80%;
+        }
+        .chat-message.ai {
+            align-self: flex-start;
+            max-width: 92%;
+        }
+
+        @keyframes messageFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .chat-avatar {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--r-full);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.15rem;
+            flex-shrink: 0;
+        }
+        .chat-message.ai .chat-avatar {
+            background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+        }
+        .chat-message.user .chat-avatar {
+            background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25);
+        }
+
+        .chat-bubble {
+            padding: 16px 20px;
+            border-radius: 18px;
+            font-size: 0.9125rem;
+            line-height: 1.7;
+            position: relative;
+        }
+        .chat-message.ai .chat-bubble {
+            background: #FFFFFF;
+            border: 1px solid var(--border-light);
+            color: var(--text-body);
+            border-top-left-radius: 4px;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+        }
+        .chat-message.user .chat-bubble {
+            background: linear-gradient(135deg, #4F46E5 0%, #4338CA 100%);
+            color: #FFFFFF;
+            border-top-right-radius: 4px;
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+        }
+
+        /* Welcome Card */
+        .welcome-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border-light);
+            border-radius: var(--r-2xl);
+            padding: 24px 28px;
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        .welcome-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4F46E5 0%, #7C3AED 50%, #059669 100%);
+        }
+
+        /* Starter Prompt Cards */
+        .starter-prompts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 18px;
+        }
+        .starter-prompt-card {
+            background: #F8FAFC;
+            border: 1px solid var(--border-light);
+            border-radius: var(--r-xl);
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: var(--t-fast);
+            text-align: left;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .starter-prompt-card:hover {
+            background: var(--primary-subtle);
+            border-color: var(--primary-border);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-sm);
+        }
+        .starter-prompt-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .starter-prompt-desc {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Book cards rendered inside AI bubble */
+        .ai-suggested-books {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+        }
+        .ai-book-card {
+            background: #F8FAFC;
+            border: 1px solid var(--border-light);
+            border-radius: var(--r-lg);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 10px;
+            transition: var(--t-fast);
+        }
+        .ai-book-card:hover {
+            background: #FFFFFF;
+            border-color: var(--primary-border);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+        .ai-book-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+        .ai-book-code {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            background: #EEF2FF;
+            color: #4F46E5;
+            padding: 2px 7px;
+            border-radius: 6px;
+        }
+        .ai-book-status {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 999px;
+        }
+        .ai-book-status.in-stock { background: #ECFDF5; color: #065F46; }
+        .ai-book-status.out-of-stock { background: #FEF2F2; color: #991B1B; }
+        .ai-book-title {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            line-height: 1.35;
+        }
+        .ai-book-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-top: 4px;
+        }
+        .ai-book-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .ai-book-btn {
+            flex: 1;
+            padding: 6px 10px;
+            border-radius: var(--r-md);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-light);
+            background: #FFFFFF;
+            color: var(--text-body);
+            transition: var(--t-fast);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            font-family: inherit;
+        }
+        .ai-book-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-subtle);
+        }
+        .ai-book-btn.primary {
+            background: var(--primary);
+            color: #FFFFFF;
+            border-color: var(--primary);
+        }
+        .ai-book-btn.primary:hover {
+            background: var(--primary-hover);
+            color: #FFFFFF;
+        }
+
+        /* Floating Input Bar */
+        .chat-input-wrapper {
+            padding: 16px 20px 20px;
+            background: linear-gradient(180deg, rgba(248,250,252,0) 0%, rgba(248,250,252,0.95) 40%, #F8FAFC 100%);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+        }
+        .chat-input-box {
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+            background: #FFFFFF;
+            border: 1.5px solid var(--border-light);
+            border-radius: 20px;
+            box-shadow: 0 6px 24px rgba(15, 23, 42, 0.08);
+            padding: 10px 14px 10px 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            transition: var(--t-fast);
+        }
+        .chat-input-box:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 8px 30px rgba(79, 70, 229, 0.16);
+        }
+        .chat-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            resize: none;
+            font-size: 0.9125rem;
+            color: var(--text-body);
+            font-family: inherit;
+            line-height: 1.5;
+            max-height: 120px;
+            padding: 4px 0;
+        }
+        .chat-input::placeholder {
+            color: var(--text-placeholder);
+        }
+        .chat-send-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px;
+            background: var(--primary);
+            color: #FFFFFF;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: var(--t-fast);
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+        .chat-send-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+            transform: scale(1.05);
+        }
+        .chat-send-btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+        .chat-send-btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .chat-caption {
+            max-width: 860px;
+            margin: 6px auto 0;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Right Sidebar */
+        .chat-sidebar {
+            width: 330px;
+            border-left: 1px solid var(--border-light);
+            background: #FFFFFF;
+            padding: 20px 20px 40px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: 100%;
+            flex-shrink: 0;
+        }
+        .sidebar-card {
+            background: #FFFFFF;
+            border: 1px solid var(--border-light);
+            border-radius: var(--r-xl);
+            padding: 16px;
+            box-shadow: var(--shadow-card);
+        }
+        .sidebar-card.gradient {
+            background: linear-gradient(135deg, #EEF2FF 0%, #F0FDF4 100%);
+            border-color: #C7D2FE;
+        }
+        .sidebar-card-title {
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: var(--text-heading);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+        .sidebar-card-desc {
+            font-size: 0.76rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+            margin-bottom: 12px;
+        }
+
+        /* Topic pills in right sidebar */
+        .topic-group-title {
+            font-size: 0.6875rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin: 12px 0 6px;
+        }
+        .topic-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: var(--r-md);
+            background: #F8FAFC;
+            border: 1px solid var(--border-light);
+            color: var(--text-body);
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--t-fast);
+            text-align: left;
+            width: 100%;
+            margin-bottom: 5px;
+            font-family: inherit;
+        }
+        .topic-pill:hover {
+            background: var(--primary-subtle);
+            border-color: var(--primary-border);
+            color: var(--primary);
+            transform: translateX(2px);
+        }
+
+        /* Typing Dots Animation */
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #818CF8;
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        @media (max-width: 1100px) {
+            .chat-sidebar { display: none; }
+        }
+        @media (max-width: 768px) {
+            .starter-prompts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">📚</div>
+            <div class="sidebar-logo-text">
+                <strong>Thư Viện AI</strong>
+                <span>Smart Library System</span>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Tổng quan</div>
+            <a href="/dashboard" class="nav-item">
+                <span class="nav-icon">📊</span> Dashboard
+            </a>
+            <div class="nav-section-label">Quản lý</div>
+            <a href="/books" class="nav-item" data-librarian-only>
+                <span class="nav-icon">📖</span> Kho Sách
+            </a>
+            <a href="/readers" class="nav-item" data-librarian-only>
+                <span class="nav-icon">👥</span> Độc Giả
+            </a>
+            <a href="/borrows" class="nav-item">
+                <span class="nav-icon">🔄</span> Mượn / Trả
+            </a>
+            <a href="/statistics" class="nav-item" data-librarian-only>
+                <span class="nav-icon">📈</span> Thống Kê
+            </a>
+            <a href="/users" class="nav-item" id="nav-users-ai" style="display:none;">
+                <span class="nav-icon">🛡️</span> Tài Khoản
+            </a>
+            <div class="nav-section-label">AI Assistant</div>
+            <a href="/ai-chat" class="nav-item active">
+                <span class="nav-icon">🤖</span> Chatbot Tra Cứu AI
+            </a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info-card" onclick="logout()">
+                <div class="user-avatar" id="sidebar-user-avatar">?</div>
+                <div class="user-details">
+                    <div class="user-name" id="sidebar-user-name">Đang tải...</div>
+                    <div class="user-role" id="sidebar-user-role">—</div>
+                </div>
+                <span style="color:var(--text-muted);font-size:0.75rem;" title="Đăng xuất">⬡</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+        <!-- Top Header -->
+        <header class="top-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+                <h1 class="page-title" style="margin:0;">🤖 Trợ lý AI Tra cứu & Gợi ý Sách</h1>
+                <div class="ai-status-pill" id="ai-status-badge">
+                    <span class="ai-status-dot online" id="ai-dot"></span>
+                    <span id="ai-status-text">Đang kết nối AI...</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline btn-sm" onclick="clearChat()">
+                    🗑️ Xóa hội thoại
+                </button>
+            </div>
+        </header>
+
+        <!-- Chat Main Layout (Center Stream + Right Hub) -->
+        <div class="chat-container">
+
+            <!-- Center Chat Column -->
+            <div class="chat-main-column">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="chat-stream-inner">
+
+                        <!-- Welcome Hero Box -->
+                        <div class="welcome-card">
+                            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+                                <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#4F46E5,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#fff;box-shadow:0 4px 14px rgba(79,70,229,0.3);flex-shrink:0;">
+                                    🤖
+                                </div>
+                                <div>
+                                    <h3 style="font-size:1.15rem;font-weight:800;color:var(--text-heading);margin:0;letter-spacing:-0.02em;">
+                                        Xin chào! Tôi là Trợ lý AI Thủ Thư Thông Minh.
+                                    </h3>
+                                    <p style="font-size:0.84rem;color:var(--text-muted);margin:2px 0 0;">
+                                        Hỗ trợ tra cứu sách bằng ngôn ngữ tự nhiên, tóm tắt nội dung và gợi ý cá nhân hóa.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:14px;padding:12px 14px;background:#F8FAFC;border-radius:12px;border:1px solid var(--border-light);font-size:0.8125rem;color:var(--text-secondary);">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span>🔍</span> <strong>Tra cứu ngữ nghĩa</strong> từ CSDL
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span>📖</span> <strong>Tóm tắt 1-click</strong> đối tượng & giá trị
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span>⭐</span> <strong>Gợi ý cá nhân</strong> lịch sử mượn
+                                </div>
+                            </div>
+
+                            <!-- 4 Starter Prompt Action Cards -->
+                            <div class="starter-prompts-grid">
+                                <div class="starter-prompt-card" onclick="askQuestion('Tìm sách về Trí tuệ nhân tạo cho người mới bắt đầu')">
+                                    <div class="starter-prompt-title">
+                                        <span>📘</span> Nhập môn Trí tuệ nhân tạo
+                                    </div>
+                                    <div class="starter-prompt-desc">
+                                        Tìm sách AI, Machine Learning, Deep Learning cơ bản dễ đọc
+                                    </div>
+                                </div>
+
+                                <div class="starter-prompt-card" onclick="askQuestion('Có sách nào về Prompt Engineering và Generative AI không?')">
+                                    <div class="starter-prompt-title">
+                                        <span>⚡</span> Prompt Engineering & LLMs
+                                    </div>
+                                    <div class="starter-prompt-desc">
+                                        Tài liệu kỹ thuật prompt, mô hình ngôn ngữ lớn hiện đại
+                                    </div>
+                                </div>
+
+                                <div class="starter-prompt-card" onclick="askQuestion('Tìm sách lập trình Python và xây dựng Web FastAPI')">
+                                    <div class="starter-prompt-title">
+                                        <span>🐍</span> Lập trình Python & Web API
+                                    </div>
+                                    <div class="starter-prompt-desc">
+                                        Sách học phát triển backend hiện đại với Python và FastAPI
+                                    </div>
+                                </div>
+
+                                <div class="starter-prompt-card" onclick="askQuestion('Sách Clean Code của Robert C. Martin có những nội dung gì?')">
+                                    <div class="starter-prompt-title">
+                                        <span>✨</span> Clean Code & Kiến trúc phần mềm
+                                    </div>
+                                    <div class="starter-prompt-desc">
+                                        Tư duy viết mã sạch, chuẩn mực thiết kế và refactoring
+                                    </div>
+                                </div>
+                            </div>
+                        </div><!-- /welcome-card -->
+
+                    </div><!-- /chat-stream-inner -->
+                </div><!-- /chat-messages -->
+
+                <!-- Floating Input Area -->
+                <div class="chat-input-wrapper">
+                    <div class="chat-input-box">
+                        <textarea
+                            id="chat-input"
+                            class="chat-input"
+                            placeholder="Nhập câu hỏi tra cứu... (VD: Tìm sách về Trí tuệ nhân tạo, hoặc Gợi ý sách lập trình Python)"
+                            rows="1"
+                            onkeydown="handleChatKeydown(event)"
+                        ></textarea>
+                        <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()" title="Gửi câu hỏi (Enter)">
+                            ➤
+                        </button>
+                    </div>
+                </div>
+            </div><!-- /chat-main-column -->
+
+            <!-- Right Sidebar: Curated Assistant Hub -->
+            <div class="chat-sidebar">
+
+                <!-- Card: Personalized Suggestion -->
+                <div class="sidebar-card gradient">
+                    <div class="sidebar-card-title">
+                        <span>✨</span> Gợi ý theo sở thích cá nhân
+                    </div>
+                    <div class="sidebar-card-desc">
+                        Dựa trên lịch sử mượn thực tế của bạn, AI sẽ phân tích và đề xuất danh mục sách phù hợp nhất.
+                    </div>
+                    <button class="btn btn-primary w-100 btn-sm" onclick="getSuggestions()" style="font-weight:700;">
+                        🎯 Phân tích & Gợi ý ngay
+                    </button>
+                </div>
+
+                <!-- Card: Topic Prompts -->
+                <div class="sidebar-card">
+                    <div class="sidebar-card-title" style="margin-bottom:8px;">
+                        <span>💡</span> Câu hỏi chọn lọc theo chủ đề
+                    </div>
+
+                    <div class="topic-group-title">🤖 Trí tuệ nhân tạo & Dữ liệu</div>
+                    <button class="topic-pill" onclick="askQuestion('Tìm sách về Trí tuệ nhân tạo cho người mới bắt đầu')">
+                        <span>📘</span> Nhập môn Trí tuệ nhân tạo (AI)
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Có sách nào về Prompt Engineering và Generative AI không?')">
+                        <span>⚡</span> Prompt Engineering & LLMs
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Tôi muốn học Machine Learning và Deep Learning thực chiến')">
+                        <span>🧠</span> Machine Learning & Deep Learning
+                    </button>
+
+                    <div class="topic-group-title">💻 Lập trình & Phần mềm</div>
+                    <button class="topic-pill" onclick="askQuestion('Sách Clean Code của Robert C. Martin có những nội dung gì?')">
+                        <span>✨</span> Clean Code & Kiến trúc phần mềm
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Tìm sách lập trình Python và xây dựng Web FastAPI')">
+                        <span>🐍</span> Python & Web FastAPI
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Sách cấu trúc dữ liệu và giải thuật nào hay?')">
+                        <span>🌲</span> Cấu trúc dữ liệu & Giải thuật
+                    </button>
+
+                    <div class="topic-group-title">🌟 Kỹ năng & Kinh tế</div>
+                    <button class="topic-pill" onclick="askQuestion('Gợi ý sách về Khởi nghiệp tinh gọn (Lean Startup)')">
+                        <span>🚀</span> Khởi nghiệp tinh gọn (Lean Startup)
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Có sách Đắc Nhân Tâm hay 7 Thói quen hiệu quả không?')">
+                        <span>🤝</span> Đắc Nhân Tâm & 7 Thói quen
+                    </button>
+                    <button class="topic-pill" onclick="askQuestion('Những sách nào đang còn sẵn trong thư viện để mượn ngay?')">
+                        <span>🟢</span> Sách đang có sẵn để mượn ngay
+                    </button>
+                </div>
+
+                <!-- Card: Privacy & Safety Notice -->
+                <div class="sidebar-card" style="background:#F8FAFC;border-color:var(--border-light);margin-top:auto;">
+                    <div style="font-size:0.75rem;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                        <span>🛡️</span> Cam kết An toàn & Chuẩn chỉ
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-secondary);line-height:1.5;">
+                        • AI chỉ gợi ý sách <strong>thực tế có trong thư viện</strong>.<br>
+                        • <strong>Ẩn danh thông tin nhạy cảm</strong> (không gửi họ tên, SĐT độc giả).<br>
+                        • Tích hợp <strong>SQLite FTS5 BM25</strong> xếp hạng chính xác.
+                    </div>
+                </div>
+
+            </div><!-- /chat-sidebar -->
+
+        </div><!-- /chat-container -->
+    </main>
+</div><!-- /app-layout -->
+
+<!-- AI Summarizer Modal -->
+<div class="modal-overlay" id="ai-summary-modal">
+    <div class="modal" style="max-width:580px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="summary-modal-title">📖 Tóm tắt sách</h3>
+            <button class="modal-close" onclick="closeSummaryModal()">✕</button>
+        </div>
+        <div style="padding:20px 24px;">
+            <div id="summary-book-info" style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border-faint);"></div>
+            <div id="summary-content" style="font-size:0.88rem;line-height:1.75;color:var(--text-body);"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="copySummaryText()">📋 Sao chép</button>
+            <button class="btn btn-primary" onclick="closeSummaryModal()">Đóng</button>
+        </div>
+    </div>
+</div>
+
+<!-- Book Reservation Modal -->
+<div class="modal-overlay" id="reserve-modal">
+    <div class="modal" style="max-width:480px;">
+        <div class="modal-header">
+            <h3 class="modal-title">📌 Đặt trước sách</h3>
+            <button class="modal-close" onclick="closeReserveModal()">✕</button>
+        </div>
+        <div style="padding:20px 24px;">
+            <p style="font-size:0.84rem;color:var(--text-secondary);margin-bottom:12px;">
+                Sách này hiện đã được mượn hết. Bạn có muốn đặt chỗ trước để khi có người trả sách, thư viện sẽ giữ chỗ cho bạn không?
+            </p>
+            <div style="background:#F8FAFC;border:1px solid var(--border-light);border-radius:var(--r-md);padding:10px 14px;margin-bottom:14px;">
+                <strong id="reserve-book-title" style="color:var(--text-heading);font-size:0.88rem;">—</strong>
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label class="form-label">Ghi chú (tùy chọn)</label>
+                <textarea id="reserve-notes" class="form-control" rows="2" placeholder="Ghi chú thêm..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeReserveModal()">Hủy</button>
+            <button class="btn btn-primary" id="btn-confirm-reserve" onclick="submitReservation()">Xác nhận đặt trước</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script>
+    if (!requireAuth()) {}
+    populateSidebarUser();
+    if (hasRole('admin')) {
+        const n = document.getElementById('nav-users-ai');
+        if (n) n.style.display = 'flex';
+    }
+
+    let isLoading = false;
+    let selectedBookForReserve = null;
+    let currentSummaryText = "";
+    let currentActiveModel = "Groq Cloud";
+
+    const summaryModal = new Modal('ai-summary-modal');
+    const reserveModal = new Modal('reserve-modal');
+    const CHAT_STORAGE_KEY = 'smart_lib_ai_chat_history';
+
+    function getStreamInner() {
+        let stream = document.querySelector('.chat-stream-inner');
+        if (!stream) {
+            const container = document.getElementById('chat-messages');
+            stream = document.createElement('div');
+            stream.className = 'chat-stream-inner';
+            container.appendChild(stream);
+        }
+        return stream;
+    }
+
+    function scrollToBottom(smooth = true) {
+        const container = document.getElementById('chat-messages');
+        if (!container) return;
+        requestAnimationFrame(() => {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: smooth ? 'smooth' : 'auto'
+            });
+        });
+    }
+
+    async function init() {
+        try {
+            const status = await aiAPI.status();
+            const dot = document.getElementById('ai-dot');
+            const text = document.getElementById('ai-status-text');
+            if (status.is_mock) {
+                dot.className = 'ai-status-dot warning';
+                text.textContent = 'Smart Local AI';
+                currentActiveModel = 'Smart Local AI';
+            } else {
+                dot.className = 'ai-status-dot online';
+                currentActiveModel = status.model || 'Groq';
+                text.textContent = `${currentActiveModel} (Sẵn sàng)`;
+            }
+        } catch {
+            const text = document.getElementById('ai-status-text');
+            if (text) text.textContent = 'AI Sẵn sàng';
+        }
+
+        loadChatHistory();
+        scrollToBottom(false);
+    }
+
+    function handleChatKeydown(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    }
+
+    function askQuestion(text) {
+        const input = document.getElementById('chat-input');
+        input.value = text;
+        sendMessage();
+    }
+
+    function addMessage(content, type = 'ai', isHTML = false, suggestedBooks = []) {
+        const stream = getStreamInner();
+        const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+        const div = document.createElement('div');
+        div.className = `chat-message ${type}`;
+
+        if (type === 'user') {
+            div.innerHTML = `
+                <div class="chat-avatar">👤</div>
+                <div>
+                    <div class="chat-bubble">${isHTML ? content : escapeHtml(content)}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;padding-right:4px;text-align:right;">Bạn • ${time}</div>
+                </div>`;
+        } else {
+            let booksHTML = '';
+            if (suggestedBooks && suggestedBooks.length > 0) {
+                booksHTML = renderSuggestedBookCards(suggestedBooks);
+            }
+
+            div.innerHTML = `
+                <div class="chat-avatar">🤖</div>
+                <div style="max-width:100%;flex:1;">
+                    <div class="chat-bubble">
+                        ${isHTML ? content : escapeHtml(content)}
+                        ${booksHTML}
+                    </div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;padding-left:4px;">Trợ lý AI Thủ Thư • ${time}</div>
+                </div>`;
+        }
+
+        stream.appendChild(div);
+        scrollToBottom(true);
+        saveChatHistory();
+        return div;
+    }
+
+    function renderSuggestedBookCards(books) {
+        return `
+            <div class="ai-suggested-books">
+                ${books.map(b => `
+                    <div class="ai-book-card">
+                        <div>
+                            <div class="ai-book-header">
+                                <span class="ai-book-code">${escapeHtml(b.code)}</span>
+                                <span class="ai-book-status ${b.available ? 'in-stock' : 'out-of-stock'}">
+                                    ${b.available ? '🟢 Còn sách' : '🔴 Hết sách'}
+                                </span>
+                            </div>
+                            <div class="ai-book-title">${escapeHtml(b.title)}</div>
+                            <div class="ai-book-meta">
+                                <div>✍️ ${escapeHtml(b.author || 'Tác giả')}</div>
+                                <div>🏷️ ${escapeHtml(b.category || 'Thể loại')}</div>
+                            </div>
+                        </div>
+                        <div class="ai-book-actions">
+                            <button class="ai-book-btn" onclick="openBookSummary(${b.id}, '${escapeHtml(b.title)}', '${escapeHtml(b.author || '')}', '${escapeHtml(b.category || '')}')">
+                                📖 Tóm tắt AI
+                            </button>
+                            <button class="ai-book-btn ${b.available ? 'primary' : ''}" onclick="handleBookAction(${b.id}, '${escapeHtml(b.title)}', ${b.available})">
+                                ${b.available ? '🔍 Xem sách' : '📌 Đặt trước'}
+                            </button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function addTypingIndicator() {
+        const stream = getStreamInner();
+        const div = document.createElement('div');
+        div.className = 'chat-message ai';
+        div.id = 'typing-indicator';
+        div.innerHTML = `
+            <div class="chat-avatar">🤖</div>
+            <div class="chat-bubble" style="padding:14px 18px;">
+                <div class="typing-indicator">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <span style="font-size:0.8125rem;color:var(--text-muted);margin-left:8px;font-weight:500;">
+                        Trợ lý AI đang tra cứu CSDL & đối chiếu sách thực tế...
+                    </span>
+                </div>
+            </div>`;
+        stream.appendChild(div);
+        scrollToBottom(true);
+        return div;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const query = input.value.trim();
+        if (!query || isLoading) return;
+
+        input.value = '';
+        input.style.height = 'auto';
+        isLoading = true;
+
+        const sendBtn = document.getElementById('chat-send-btn');
+        sendBtn.disabled = true;
+        sendBtn.textContent = '⏳';
+
+        addMessage(query, 'user');
+        const typingEl = addTypingIndicator();
+
+        try {
+            const result = await aiAPI.search(query);
+            typingEl.remove();
+
+            const modelBadgeText = result.source === 'mock' ? 'SMART LOCAL AI' : currentActiveModel.toUpperCase();
+            const sourceTag = `<span class="badge badge-accent" style="font-size:0.6875rem;">${modelBadgeText}</span>`;
+
+            const formattedAnswer = formatAIResponse(result.answer);
+            const content = `${formattedAnswer}<div style="margin-top:12px;display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--border-faint);">${sourceTag} <span style="font-size:0.75rem;color:var(--text-muted);">Tìm thấy ${result.suggested_books?.length || 0} sách liên quan từ CSDL thư viện</span></div>`;
+
+            addMessage(content, 'ai', true, result.suggested_books);
+
+        } catch(err) {
+            typingEl.remove();
+            addMessage(`⚠️ Lỗi kết nối: ${err.message}. Vui lòng thử lại.`, 'ai');
+            toast.error(err.message);
+        } finally {
+            isLoading = false;
+            sendBtn.disabled = false;
+            sendBtn.textContent = '➤';
+            setTimeout(() => scrollToBottom(true), 100);
+        }
+    }
+
+    async function getSuggestions() {
+        if (isLoading) return;
+        addMessage('🎯 Hãy phân tích lịch sử mượn và gợi ý sách phù hợp nhất cho tôi.', 'user');
+        const typingEl = addTypingIndicator();
+        isLoading = true;
+
+        try {
+            const result = await aiAPI.suggest();
+            typingEl.remove();
+
+            const text = result.suggestions[0]?.text || 'Không tìm thấy gợi ý phù hợp.';
+            const formatted = formatAIResponse(text);
+
+            const sourceTag = '<span class="badge badge-primary" style="font-size:0.6875rem;">GỢI Ý CÁ NHÂN HÓA</span>';
+            addMessage(`${formatted}<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border-faint);">${sourceTag}</div>`, 'ai', true);
+
+        } catch(err) {
+            typingEl.remove();
+            addMessage(`⚠️ Không thể lấy gợi ý: ${err.message}`, 'ai');
+            toast.error(err.message);
+        } finally {
+            isLoading = false;
+            setTimeout(() => scrollToBottom(true), 100);
+        }
+    }
+
+    async function openBookSummary(bookId, title, author, category) {
+        document.getElementById('summary-modal-title').textContent = `📖 Tóm tắt: ${title}`;
+        document.getElementById('summary-book-info').innerHTML = `
+            <strong>Tác giả:</strong> ${author || 'Nhiều tác giả'} • <strong>Thể loại:</strong> ${category || 'Chung'}
+        `;
+        document.getElementById('summary-content').innerHTML = `
+            <div style="text-align:center;padding:32px 10px;">
+                <div class="loading-spinner dark" style="margin:0 auto 12px auto;width:28px;height:28px;"></div>
+                <div style="color:var(--text-secondary);font-size:0.84rem;">Trợ lý AI đang phân tích nội dung và tạo bản tóm tắt chuẩn mực...</div>
+            </div>
+        `;
+        summaryModal.show();
+
+        try {
+            const res = await aiAPI.summarize(bookId);
+            currentSummaryText = res.summary || 'Không có tóm tắt.';
+            document.getElementById('summary-content').innerHTML = `
+                <div style="line-height:1.75;">
+                    ${formatAIResponse(currentSummaryText)}
+                </div>
+            `;
+        } catch (err) {
+            document.getElementById('summary-content').innerHTML = `
+                <div class="alert alert-danger">⚠️ Lỗi tóm tắt sách: ${err.message}</div>
+            `;
+        }
+    }
+
+    function closeSummaryModal() {
+        summaryModal.hide();
+    }
+
+    function copySummaryText() {
+        if (!currentSummaryText) return;
+        navigator.clipboard.writeText(currentSummaryText).then(() => {
+            toast.success('Đã sao chép nội dung tóm tắt vào bộ nhớ tạm!');
+        }).catch(() => {
+            toast.info('Không thể tự động sao chép.');
+        });
+    }
+
+    function handleBookAction(bookId, title, available) {
+        if (available) {
+            window.location.href = `/books?highlight=${bookId}`;
+        } else {
+            openReserveModal(bookId, title);
+        }
+    }
+
+    function openReserveModal(bookId, title) {
+        selectedBookForReserve = bookId;
+        document.getElementById('reserve-book-title').textContent = title;
+        document.getElementById('reserve-notes').value = '';
+        reserveModal.show();
+    }
+
+    function closeReserveModal() {
+        reserveModal.hide();
+        selectedBookForReserve = null;
+    }
+
+    async function submitReservation() {
+        if (!selectedBookForReserve) return;
+        const btn = document.getElementById('btn-confirm-reserve');
+        const notes = document.getElementById('reserve-notes').value.trim();
+
+        try {
+            setLoading(btn, true, 'Đang đặt trước...');
+            const readerMe = await readersAPI.getMe().catch(() => null);
+            if (!readerMe) {
+                toast.error('Bạn cần có thẻ độc giả đang hoạt động để đặt trước sách!');
+                setLoading(btn, false);
+                return;
+            }
+
+            await reservationsAPI.create({
+                reader_id: readerMe.id,
+                book_id: selectedBookForReserve,
+                notes: notes || undefined
+            });
+
+            toast.success('🎉 Đặt trước sách thành công! Thư viện sẽ giữ chỗ khi có sách.');
+            closeReserveModal();
+        } catch(err) {
+            toast.error(`Đặt trước thất bại: ${err.message}`);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    function saveChatHistory() {
+        try {
+            const stream = getStreamInner();
+            localStorage.setItem(CHAT_STORAGE_KEY, stream.innerHTML);
+        } catch {}
+    }
+
+    function loadChatHistory() {
+        try {
+            const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+            if (saved && saved.trim()) {
+                const stream = getStreamInner();
+                stream.innerHTML = saved;
+            }
+        } catch {}
+    }
+
+    function clearChat() {
+        localStorage.removeItem(CHAT_STORAGE_KEY);
+        location.reload();
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    }
+
+    document.getElementById('chat-input').addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    init();
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Tài khoản - Thư viện Thông Minh</title>
+    <meta name="description" content="Quản lý tài khoản người dùng hệ thống thư viện (Admin)">
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">📚</div>
+            <div class="sidebar-logo-text">Thư Viện<span>Smart Library System</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Tổng quan</div>
+            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span>Dashboard</span></a>
+            <div class="nav-section-label">Quản lý</div>
+            <a href="/books" class="nav-item"><span class="nav-icon">📖</span><span>Quản lý Sách</span></a>
+            <a href="/readers" class="nav-item"><span class="nav-icon">👥</span><span>Độc giả</span></a>
+            <a href="/borrows" class="nav-item"><span class="nav-icon">🔄</span><span>Mượn / Trả</span></a>
+            <a href="/statistics" class="nav-item"><span class="nav-icon">📈</span><span>Thống kê</span></a>
+            <a href="/users" class="nav-item active"><span class="nav-icon">🛡️</span><span>Tài khoản</span></a>
+            <div class="nav-section-label">AI Assistant</div>
+            <a href="/ai-chat" class="nav-item"><span class="nav-icon">🤖</span><span>Chatbot Tra cứu</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info-card" onclick="logout()">
+                <div class="user-avatar" id="sidebar-user-avatar">?</div>
+                <div class="user-details">
+                    <div class="user-name" id="sidebar-user-name">Đang tải...</div>
+                    <div class="user-role" id="sidebar-user-role">—</div>
+                </div>
+                <span style="color:var(--text-muted);">→</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1 class="page-title">🛡️ Quản trị Tài khoản Hệ thống</h1>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="btn-new-user" onclick="openCreateModal()">➕ Tạo tài khoản mới</button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <!-- Filter bar -->
+            <div class="card" style="margin-bottom:20px;padding:18px 20px;">
+                <div class="search-bar" style="margin:0;flex-wrap:wrap;gap:10px;">
+                    <div class="search-input-wrap" style="flex:1;min-width:220px;">
+                        <span class="search-icon">🔍</span>
+                        <input type="text" id="search-keyword" class="form-control" placeholder="Tìm theo họ tên, username, email..." onkeyup="if(event.key==='Enter') loadUsers(1)">
+                    </div>
+                    <select id="filter-role" class="form-control" style="width:170px;" onchange="loadUsers(1)">
+                        <option value="">Tất cả vai trò</option>
+                        <option value="admin">Quản trị viên (Admin)</option>
+                        <option value="librarian">Thủ thư (Librarian)</option>
+                        <option value="reader">Độc giả (Reader)</option>
+                    </select>
+                    <select id="filter-active" class="form-control" style="width:170px;" onchange="loadUsers(1)">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="true">🟢 Đang hoạt động</option>
+                        <option value="false">🔴 Đã vô hiệu hóa</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadUsers(1)">Tìm kiếm</button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Danh sách tài khoản</h3>
+                    <span id="users-count" class="badge badge-purple">—</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Người dùng</th>
+                                <th>Email</th>
+                                <th>Vai trò</th>
+                                <th>Trạng thái</th>
+                                <th>Ngày tạo</th>
+                                <th style="text-align:right;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-tbody">
+                            <tr><td colspan="7"><div class="loading-overlay"><div class="loading-spinner" style="width:32px;height:32px;"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="users-pagination" class="pagination" style="margin-top:16px;"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Modal Tạo / Chỉnh sửa User -->
+<div class="modal-overlay" id="modal-user">
+    <div class="modal" style="max-width:520px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="user-modal-title">➕ Tạo tài khoản mới</h3>
+            <button class="modal-close" onclick="userModal.hide()">✕</button>
+        </div>
+        <div id="user-modal-body">
+            <div class="form-group">
+                <label class="form-label">Tên đăng nhập (Username) *</label>
+                <input type="text" id="u-username" class="form-control" placeholder="VD: thuhu03, nguyenvana...">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Họ và tên *</label>
+                <input type="text" id="u-fullname" class="form-control" placeholder="Họ và tên đầy đủ">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Địa chỉ Email *</label>
+                <input type="email" id="u-email" class="form-control" placeholder="email@example.com">
+            </div>
+            <div class="form-group" id="password-group">
+                <label class="form-label">Mật khẩu khởi tạo *</label>
+                <input type="password" id="u-password" class="form-control" placeholder="Tối thiểu 6 ký tự">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Phân quyền vai trò *</label>
+                <select id="u-role" class="form-control">
+                    <option value="reader">Độc giả (Reader)</option>
+                    <option value="librarian">Thủ thư (Librarian)</option>
+                    <option value="admin">Quản trị viên (Admin)</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="userModal.hide()">Hủy</button>
+            <button class="btn btn-primary" id="btn-save-user" onclick="saveUser()">💾 Lưu tài khoản</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script>
+    // Chỉ Admin được vào trang này
+    if (!requireAuth()) {}
+    const user = getCurrentUser();
+    if (user && user.role !== 'admin') {
+        toast.error('Chỉ Quản trị viên (Admin) mới có quyền truy cập trang này!');
+        setTimeout(() => window.location.href = '/dashboard', 1500);
+    }
+    populateSidebarUser();
+
+    const userModal = new Modal('modal-user');
+    let editingUserId = null;
+    let currentPage = 1;
+
+    async function loadUsers(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('users-tbody');
+        showTableLoading(tbody, 7);
+
+        const params = {
+            page,
+            page_size: 20,
+            keyword: document.getElementById('search-keyword').value.trim() || undefined,
+            role: document.getElementById('filter-role').value || undefined,
+            is_active: document.getElementById('filter-active').value || undefined,
+        };
+        // Remove undefined keys
+        Object.keys(params).forEach(k => params[k] === undefined && delete params[k]);
+
+        try {
+            const result = await usersAPI.list(params);
+            document.getElementById('users-count').textContent = `${result.total} tài khoản`;
+            renderUsersTable(result.items);
+            renderPagination(document.getElementById('users-pagination'), page, result.total, 20, (p) => `loadUsers(${p})`);
+        } catch(err) {
+            toast.error(err.message);
+            showEmptyState(tbody, 'Lỗi tải dữ liệu', 7);
+        }
+    }
+
+    function renderUsersTable(users) {
+        const tbody = document.getElementById('users-tbody');
+        if (!users.length) { showEmptyState(tbody, 'Không tìm thấy tài khoản nào', 7); return; }
+
+        const currentUserId = getCurrentUser()?.id;
+        tbody.innerHTML = users.map(u => {
+            const roleBadge = ROLE_LABELS[u.role] || { label: u.role, class: 'badge-muted' };
+            const isCurrentUser = u.id === currentUserId;
+            const initial = (u.full_name || u.username || 'U').charAt(0).toUpperCase();
+
+            return `<tr>
+                <td><span style="color:var(--text-muted);font-size:0.78rem;">#${u.id}</span></td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg, var(--primary) 0%, #7C3AED 100%);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8rem;flex-shrink:0;">
+                            ${initial}
+                        </div>
+                        <div>
+                            <div style="font-weight:700;font-size:0.875rem;color:var(--text-primary);">${escapeHtml(u.full_name)}</div>
+                            <div class="text-muted fs-xs">@${escapeHtml(u.username)} ${isCurrentUser ? '<span style="color:var(--accent);font-weight:700;">(Bạn)</span>' : ''}</div>
+                        </div>
+                    </div>
+                </td>
+                <td style="font-size:0.82rem;color:var(--text-secondary);">${escapeHtml(u.email)}</td>
+                <td><span class="badge ${roleBadge.class}">${roleBadge.label}</span></td>
+                <td>
+                    <span class="badge ${u.is_active ? 'badge-success' : 'badge-danger'}">
+                        ${u.is_active ? '🟢 Hoạt động' : '🔴 Bị khóa'}
+                    </span>
+                </td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${fmt.date(u.created_at)}</td>
+                <td style="text-align:right;">
+                    <div style="display:inline-flex;gap:4px;flex-wrap:wrap;">
+                        ${!isCurrentUser ? `
+                        <button class="btn btn-sm btn-outline" onclick="openEditModal(${u.id}, '${escapeHtml(u.full_name)}', '${escapeHtml(u.email)}', '${u.role}')">✏️ Sửa</button>
+                        <button class="btn btn-sm ${u.is_active ? 'btn-danger' : 'btn-success'}" onclick="toggleActive(${u.id}, ${u.is_active})">
+                            ${u.is_active ? '🚫 Khóa' : '✅ Mở khóa'}
+                        </button>` : '<span class="badge badge-muted fs-xs">Đang đăng nhập</span>'}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openCreateModal() {
+        editingUserId = null;
+        document.getElementById('user-modal-title').textContent = '➕ Tạo tài khoản người dùng mới';
+        document.getElementById('u-username').value = '';
+        document.getElementById('u-username').disabled = false;
+        document.getElementById('u-fullname').value = '';
+        document.getElementById('u-email').value = '';
+        document.getElementById('u-password').value = '';
+        document.getElementById('u-role').value = 'reader';
+        document.getElementById('password-group').style.display = 'block';
+        userModal.show();
+    }
+
+    function openEditModal(id, fullName, email, role) {
+        editingUserId = id;
+        document.getElementById('user-modal-title').textContent = '✏️ Chỉnh sửa thông tin tài khoản';
+        document.getElementById('u-username').value = '(không thể sửa username)';
+        document.getElementById('u-username').disabled = true;
+        document.getElementById('u-fullname').value = fullName;
+        document.getElementById('u-email').value = email;
+        document.getElementById('u-password').value = '';
+        document.getElementById('u-role').value = role;
+        document.getElementById('password-group').style.display = 'none';
+        userModal.show();
+    }
+
+    async function saveUser() {
+        const btn = document.getElementById('btn-save-user');
+        const fullName = document.getElementById('u-fullname').value.trim();
+        const email = document.getElementById('u-email').value.trim();
+        const role = document.getElementById('u-role').value;
+
+        if (!fullName || !email) {
+            toast.warning('Vui lòng điền đầy đủ họ tên và email!');
+            return;
+        }
+
+        setLoading(btn, true, 'Đang lưu...');
+        try {
+            if (editingUserId) {
+                await usersAPI.update(editingUserId, { full_name: fullName, email });
+                toast.success('Đã cập nhật thông tin tài khoản thành công!');
+            } else {
+                const username = document.getElementById('u-username').value.trim();
+                const password = document.getElementById('u-password').value;
+                if (!username || !password) {
+                    toast.warning('Vui lòng điền username và mật khẩu khởi tạo!');
+                    setLoading(btn, false);
+                    return;
+                }
+                await usersAPI.create({ username, full_name: fullName, email, password, role });
+                toast.success('🎉 Tạo tài khoản thành công!');
+            }
+            userModal.hide();
+            loadUsers(currentPage);
+        } catch(err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    async function toggleActive(id, currentActive) {
+        const action = currentActive ? 'khóa' : 'mở khóa';
+        const ok = await confirmAction(`Bạn có chắc muốn ${action} tài khoản này?`);
+        if (!ok) return;
+        try {
+            await usersAPI.toggleActive(id);
+            toast.success(`Đã ${action} tài khoản thành công!`);
+            loadUsers(currentPage);
+        } catch(err) {
+            toast.error(err.message);
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    loadUsers(1);
+</script>
+</body>
+</html>

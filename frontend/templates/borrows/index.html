@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mượn / Trả Sách - Thư viện Thông Minh</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">📚</div>
+            <div class="sidebar-logo-text">Thư Viện<span>Smart Library System</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Tổng quan</div>
+            <a href="/dashboard" class="nav-item"><span class="nav-icon">📊</span><span>Dashboard</span></a>
+            <div class="nav-section-label">Quản lý</div>
+            <a href="/books" class="nav-item"><span class="nav-icon">📖</span><span>Quản lý Sách</span></a>
+            <a href="/readers" class="nav-item"><span class="nav-icon">👥</span><span>Độc giả</span></a>
+            <a href="/borrows" class="nav-item active"><span class="nav-icon">🔄</span><span>Mượn / Trả</span></a>
+            <a href="/statistics" class="nav-item"><span class="nav-icon">📈</span><span>Thống kê</span></a>
+            <a href="/users" class="nav-item" id="nav-users-b" style="display:none;"><span class="nav-icon">🛡️</span><span>Tài khoản</span></a>
+            <div class="nav-section-label">AI Assistant</div>
+            <a href="/ai-chat" class="nav-item"><span class="nav-icon">🤖</span><span>Chatbot Tra cứu</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info-card" onclick="logout()">
+                <div class="user-avatar" id="sidebar-user-avatar">?</div>
+                <div class="user-details">
+                    <div class="user-name" id="sidebar-user-name">Đang tải...</div>
+                    <div class="user-role" id="sidebar-user-role">—</div>
+                </div>
+                <span style="color:var(--text-muted);font-size:0.8rem;">→</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1 class="page-title">🔄 Quản lý Mượn / Trả Sách & Phạt</h1>
+            <div class="header-actions">
+                <button class="btn btn-outline" id="btn-export-borrows" onclick="exportBorrows()" data-librarian-only>📥 Xuất CSV</button>
+                <button class="btn btn-primary" id="btn-new-borrow" data-librarian-only>📝 Lập phiếu mượn mới</button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <!-- Tabs Bar -->
+            <div class="tabs" style="margin-bottom:16px;">
+                <button class="tab-btn active" id="tab-all" onclick="switchTab('all')">📋 Tất cả</button>
+                <button class="tab-btn" id="tab-borrowing" onclick="switchTab('borrowing')">📤 Đang mượn</button>
+                <button class="tab-btn" id="tab-overdue" onclick="switchTab('overdue')">⚠️ Quá hạn</button>
+                <button class="tab-btn" id="tab-returned" onclick="switchTab('returned')">✅ Đã trả</button>
+                <button class="tab-btn" id="tab-reservations" onclick="switchTab('reservations')">📌 Đặt trước</button>
+                <button class="tab-btn" id="tab-fines" onclick="switchTab('fines')">💰 Phiếu phạt</button>
+            </div>
+
+            <!-- Table Card -->
+            <div class="card" id="borrows-table-card">
+                <div class="card-header">
+                    <h3 class="card-title" id="table-title">Danh sách phiếu mượn</h3>
+                    <span id="borrows-count" class="badge badge-purple">—</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead id="table-head">
+                            <tr>
+                                <th>Mã phiếu</th>
+                                <th>Độc giả</th>
+                                <th>Sách mượn</th>
+                                <th>Ngày mượn</th>
+                                <th>Hạn trả</th>
+                                <th>Ngày trả</th>
+                                <th>Trạng thái</th>
+                                <th style="text-align:right;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="borrows-tbody">
+                            <tr><td colspan="8"><div class="loading-overlay"><div class="loading-spinner" style="width:32px;height:32px;"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="borrows-pagination" class="pagination" style="margin-top:16px;"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- New Borrow Modal -->
+<div class="modal-overlay" id="modal-borrow">
+    <div class="modal" style="max-width:540px;">
+        <div class="modal-header">
+            <h3 class="modal-title">📝 Lập phiếu mượn sách mới</h3>
+            <button class="modal-close" onclick="borrowModal.hide()">✕</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Chọn Độc giả *</label>
+            <select id="b-reader-select" class="form-control" required>
+                <option value="">-- Chọn độc giả --</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Chọn Sách muốn mượn *</label>
+            <select id="b-book-select" class="form-control" required>
+                <option value="">-- Chọn sách có sẵn --</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Ghi chú (tùy chọn)</label>
+            <textarea id="b-notes" class="form-control" rows="2" placeholder="Ghi chú về tình trạng sách khi bàn giao..."></textarea>
+        </div>
+        <div style="background:rgba(79,70,229,0.06);border:1px solid rgba(79,70,229,0.2);border-radius:var(--radius-md);padding:12px;margin-bottom:8px;font-size:0.82rem;color:var(--text-secondary);">
+            📅 <strong>Quy định mượn:</strong> Thời hạn mượn mặc định <strong>14 ngày</strong>. Cho phép gia hạn 1 lần (+7 ngày). Phạt quá hạn <strong>2.000 VNĐ / ngày</strong>.
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="borrowModal.hide()">Hủy</button>
+            <button class="btn btn-primary" id="btn-submit-borrow" onclick="createBorrow()">📝 Tạo phiếu mượn</button>
+        </div>
+    </div>
+</div>
+
+<!-- Return/Renew Modal -->
+<div class="modal-overlay" id="modal-action">
+    <div class="modal" style="max-width:460px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="action-modal-title">Xử lý phiếu mượn</h3>
+            <button class="modal-close" onclick="actionModal.hide()">✕</button>
+        </div>
+        <div id="action-detail" style="margin-bottom:16px;"></div>
+        <div class="form-group">
+            <label class="form-label">Ghi chú khi xử lý</label>
+            <textarea id="action-notes" class="form-control" rows="2" placeholder="Ghi chú (tùy chọn)..."></textarea>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="actionModal.hide()">Hủy</button>
+            <button class="btn btn-success" id="btn-confirm-action" onclick="confirmBorrowAction()">✅ Xác nhận</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script>
+    if (!requireAuth()) {}
+    populateSidebarUser();
+    if (hasRole('admin')) { const n = document.getElementById('nav-users-b'); if(n) n.style.display='flex'; }
+
+    const borrowModal = new Modal('modal-borrow');
+    const actionModal = new Modal('modal-action');
+
+    let currentTab = 'all';
+    let currentPage = 1;
+    let currentAction = null;
+    let currentRecordId = null;
+
+    const isLibrarian = hasRole('admin', 'librarian');
+    if (!isLibrarian) {
+        document.getElementById('btn-new-borrow').style.display = 'none';
+    }
+
+    const RESERVATION_STATUS_LABELS = {
+        pending: { label: 'Chờ lấy', class: 'badge-warning' },
+        fulfilled: { label: 'Đã nhận', class: 'badge-success' },
+        cancelled: { label: 'Đã hủy', class: 'badge-muted' },
+        expired: { label: 'Hết hạn', class: 'badge-danger' }
+    };
+
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+
+        if (tab === 'fines') {
+            loadFines(1);
+        } else if (tab === 'reservations') {
+            loadReservations(1);
+        } else {
+            document.getElementById('table-title').textContent = 'Danh sách phiếu mượn';
+            document.getElementById('table-head').innerHTML = `<tr>
+                <th>Mã phiếu</th><th>Độc giả</th><th>Sách mượn</th>
+                <th>Ngày mượn</th><th>Hạn trả</th><th>Ngày trả</th><th>Trạng thái</th><th style="text-align:right;">Thao tác</th>
+            </tr>`;
+            loadBorrows(1);
+        }
+    }
+
+    async function loadBorrows(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('borrows-tbody');
+        showTableLoading(tbody, 8);
+
+        const params = { page, page_size: 15 };
+        if (currentTab === 'borrowing') params.status = 'borrowing';
+        else if (currentTab === 'overdue') params.status = 'overdue';
+        else if (currentTab === 'returned') params.status = 'returned';
+
+        try {
+            const result = await borrowsAPI.list(params);
+            document.getElementById('borrows-count').textContent = `${result.total} phiếu`;
+            renderBorrowsTable(result.items);
+            renderPagination(document.getElementById('borrows-pagination'), page, result.total, 15, (p) => `loadBorrows(${p})`);
+        } catch(err) {
+            toast.error(err.message);
+            showEmptyState(tbody, 'Lỗi tải dữ liệu', 8);
+        }
+    }
+
+    function renderBorrowsTable(records) {
+        const tbody = document.getElementById('borrows-tbody');
+        if (!records.length) { showEmptyState(tbody, 'Không có phiếu mượn nào trong mục này', 8); return; }
+
+        const today = new Date();
+        tbody.innerHTML = records.map(r => {
+            const dueDate = new Date(r.due_date);
+            const isOverdue = !r.return_date && dueDate < today;
+            const overdueDays = isOverdue ? Math.floor((today - dueDate) / 86400000) : 0;
+
+            return `<tr>
+                <td><code style="background:rgba(79,70,229,0.08);color:var(--primary);font-weight:700;padding:3px 7px;border-radius:4px;font-size:0.75rem;">${escapeHtml(r.borrow_code)}</code></td>
+                <td>
+                    <div style="font-size:0.875rem;font-weight:700;color:var(--text-primary);">${escapeHtml(r.reader.user.full_name)}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">${escapeHtml(r.reader.reader_code)}</div>
+                </td>
+                <td style="max-width:200px;">
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:0.875rem;font-weight:600;" title="${escapeHtml(r.book.title)}">${escapeHtml(r.book.title)}</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted);">${escapeHtml(r.book.code)}</div>
+                </td>
+                <td style="font-size:0.82rem;">${fmt.date(r.borrow_date)}</td>
+                <td style="font-size:0.82rem;${isOverdue ? 'color:var(--danger);font-weight:700;' : ''}">${fmt.date(r.due_date)}${isOverdue ? ` <span class="badge badge-danger" style="font-size:0.68rem;">+${overdueDays} ngày</span>` : ''}</td>
+                <td style="font-size:0.82rem;">${fmt.date(r.return_date) || '—'}</td>
+                <td>${renderBadge(r.status, BORROW_STATUS_LABELS)}</td>
+                <td style="text-align:right;">
+                    <div style="display:inline-flex;gap:4px;flex-wrap:wrap;">
+                        ${r.status !== 'returned' && r.status !== 'lost' && isLibrarian ? `
+                        <button class="btn btn-sm btn-success" onclick="openReturnModal(${r.id}, '${escapeHtml(r.borrow_code)}', ${isOverdue}, ${overdueDays})">↩️ Trả sách</button>
+                        ${r.renew_count < 1 && r.status === 'borrowing' ? `<button class="btn btn-sm btn-warning" onclick="openRenewModal(${r.id}, '${escapeHtml(r.borrow_code)}')">🔄 Gia hạn</button>` : ''}` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    async function loadReservations(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('borrows-tbody');
+        document.getElementById('table-title').textContent = 'Danh sách đặt trước sách';
+        document.getElementById('table-head').innerHTML = `<tr>
+            <th>ID</th><th>Độc giả</th><th>Sách đặt trước</th>
+            <th>Ngày đặt</th><th>Hạn giữ</th><th>Trạng thái</th><th style="text-align:right;">Thao tác</th>
+        </tr>`;
+        showTableLoading(tbody, 7);
+
+        try {
+            const result = await reservationsAPI.list({ page, page_size: 15 });
+            document.getElementById('borrows-count').textContent = `${result.total} lượt đặt`;
+
+            if (!result.items.length) { showEmptyState(tbody, 'Chưa có đặt trước nào', 7); return; }
+
+            tbody.innerHTML = result.items.map(res => `
+                <tr>
+                    <td>#${res.id}</td>
+                    <td>
+                        <div style="font-weight:700;">${escapeHtml(res.reader.user.full_name)}</div>
+                        <span class="text-muted fs-xs">${escapeHtml(res.reader.reader_code)}</span>
+                    </td>
+                    <td style="max-width:220px;">
+                        <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(res.book.title)}</div>
+                        <span class="text-muted fs-xs">${escapeHtml(res.book.code)}</span>
+                    </td>
+                    <td class="fs-sm">${fmt.datetime(res.reservation_date)}</td>
+                    <td class="fs-sm">${fmt.date(res.expire_date)}</td>
+                    <td>${renderBadge(res.status, RESERVATION_STATUS_LABELS)}</td>
+                    <td style="text-align:right;">
+                        ${res.status === 'pending' ? `
+                        <button class="btn btn-sm btn-danger" onclick="cancelReservation(${res.id})">❌ Hủy đặt</button>` : '—'}
+                    </td>
+                </tr>`).join('');
+            renderPagination(document.getElementById('borrows-pagination'), page, result.total, 15, (p) => `loadReservations(${p})`);
+        } catch(err) {
+            toast.error(err.message);
+            showEmptyState(tbody, 'Lỗi tải dữ liệu', 7);
+        }
+    }
+
+    async function cancelReservation(id) {
+        const ok = await confirmAction('Bạn có chắc muốn hủy đặt trước cuốn sách này?');
+        if (!ok) return;
+        try {
+            await reservationsAPI.cancel(id);
+            toast.success('Đã hủy đặt trước!');
+            loadReservations(currentPage);
+        } catch(err) { toast.error(err.message); }
+    }
+
+    async function loadFines(page = 1) {
+        const tbody = document.getElementById('borrows-tbody');
+        document.getElementById('table-title').textContent = 'Danh sách phiếu phạt quá hạn';
+        document.getElementById('table-head').innerHTML = `<tr>
+            <th>Mã phạt</th><th>Độc giả</th><th>Mã phiếu mượn</th>
+            <th>Số ngày quá hạn</th><th>Số tiền phạt</th><th>Trạng thái</th><th style="text-align:right;">Thao tác</th>
+        </tr>`;
+        showTableLoading(tbody, 7);
+
+        try {
+            const result = await finesAPI.list({ page, page_size: 15 });
+            document.getElementById('borrows-count').textContent = `Chưa thu: ${fmt.money(result.total_amount)}`;
+
+            if (!result.items.length) { showEmptyState(tbody, 'Không có phiếu phạt nào', 7); return; }
+
+            tbody.innerHTML = result.items.map(f => `
+                <tr>
+                    <td><code style="background:rgba(239,68,68,0.08);color:var(--danger);font-weight:700;padding:2px 6px;border-radius:4px;">#FP${String(f.id).padStart(4,'0')}</code></td>
+                    <td>
+                        <div style="font-weight:700;">${escapeHtml(f.reader.user.full_name)}</div>
+                        <span class="text-muted fs-xs">${escapeHtml(f.reader.reader_code)}</span>
+                    </td>
+                    <td>#BR${String(f.borrow_record_id).padStart(4,'0')}</td>
+                    <td><strong>${f.overdue_days}</strong> ngày</td>
+                    <td style="color:var(--danger);font-weight:800;font-size:0.95rem;">${fmt.money(f.total_amount)}</td>
+                    <td>${renderBadge(f.status, FINE_STATUS_LABELS)}</td>
+                    <td style="text-align:right;">
+                        ${f.status === 'pending' && isLibrarian ? `
+                        <button class="btn btn-sm btn-success" onclick="payFine(${f.id})">💳 Thu tiền</button>
+                        <button class="btn btn-sm btn-outline" onclick="waiveFine(${f.id})">🎁 Miễn</button>` : '—'}
+                    </td>
+                </tr>`).join('');
+        } catch(err) {
+            toast.error(err.message);
+            showEmptyState(tbody, 'Lỗi tải dữ liệu', 7);
+        }
+    }
+
+    async function payFine(id) {
+        const ok = await confirmAction('Xác nhận độc giả đã thanh toán đủ tiền phạt?');
+        if (!ok) return;
+        try {
+            await finesAPI.update(id, { status: 'paid' });
+            toast.success('Đã ghi nhận thu phạt thành công!');
+            loadFines(1);
+        } catch(err) { toast.error(err.message); }
+    }
+
+    async function waiveFine(id) {
+        const ok = await confirmAction('Xác nhận miễn tiền phạt cho độc giả này?');
+        if (!ok) return;
+        try {
+            await finesAPI.update(id, { status: 'waived', notes: 'Được miễn bởi thủ thư' });
+            toast.success('Đã miễn phạt!');
+            loadFines(1);
+        } catch(err) { toast.error(err.message); }
+    }
+
+    function openReturnModal(id, code, isOverdue, overdueDays) {
+        currentRecordId = id;
+        currentAction = 'return';
+        document.getElementById('action-modal-title').textContent = '↩️ Xác nhận trả sách';
+        
+        let finePreview = '';
+        if (isOverdue && overdueDays > 0) {
+            const fineAmount = overdueDays * 2000;
+            finePreview = `
+                <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:var(--radius-md);padding:10px 14px;margin-top:10px;color:var(--danger);font-size:0.84rem;">
+                    ⚠️ <strong>Quá hạn ${overdueDays} ngày:</strong> Tiền phạt dự kiến là <strong>${fmt.money(fineAmount)}</strong> (2.000đ/ngày).
+                </div>
+            `;
+        }
+
+        document.getElementById('action-detail').innerHTML = `
+            <div style="background:rgba(107,203,119,0.08);border:1px solid rgba(107,203,119,0.2);border-radius:var(--radius-md);padding:12px;">
+                Mã phiếu: <strong>${code}</strong><br>
+                <span class="text-muted fs-sm">Hệ thống sẽ cập nhật lại số lượng sách trong kho thư viện.</span>
+            </div>
+            ${finePreview}
+        `;
+        document.getElementById('btn-confirm-action').textContent = '↩️ Xác nhận nhận sách';
+        document.getElementById('btn-confirm-action').className = 'btn btn-success';
+        actionModal.show();
+    }
+
+    function openRenewModal(id, code) {
+        currentRecordId = id;
+        currentAction = 'renew';
+        document.getElementById('action-modal-title').textContent = '🔄 Gia hạn mượn sách';
+        document.getElementById('action-detail').innerHTML = `
+            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md);padding:12px;">
+                Mã phiếu: <strong>${code}</strong><br>
+                <span class="text-muted fs-sm">Gia hạn thêm 7 ngày. Mỗi phiếu chỉ được gia hạn 1 lần.</span>
+            </div>`;
+        document.getElementById('btn-confirm-action').textContent = '🔄 Xác nhận gia hạn';
+        document.getElementById('btn-confirm-action').className = 'btn btn-warning';
+        actionModal.show();
+    }
+
+    async function confirmBorrowAction() {
+        const notes = document.getElementById('action-notes').value;
+        const btn = document.getElementById('btn-confirm-action');
+        setLoading(btn, true, 'Đang xử lý...');
+        try {
+            if (currentAction === 'return') {
+                await borrowsAPI.return(currentRecordId, { notes });
+                toast.success('Trả sách thành công!');
+            } else if (currentAction === 'renew') {
+                await borrowsAPI.renew(currentRecordId, { notes });
+                toast.success('Gia hạn thành công! Hạn mới đã được cộng thêm 7 ngày.');
+            }
+            actionModal.hide();
+            loadBorrows(currentPage);
+        } catch(err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    async function openCreateBorrowModal() {
+        const readerSelect = document.getElementById('b-reader-select');
+        const bookSelect = document.getElementById('b-book-select');
+        
+        readerSelect.innerHTML = '<option value="">Đang tải danh sách độc giả...</option>';
+        bookSelect.innerHTML = '<option value="">Đang tải danh sách sách...</option>';
+        borrowModal.show();
+
+        try {
+            const [readersRes, booksRes] = await Promise.all([
+                readersAPI.list({ page: 1, page_size: 100, status: 'active' }),
+                booksAPI.list({ page: 1, page_size: 100, available_only: true })
+            ]);
+
+            readerSelect.innerHTML = '<option value="">-- Chọn độc giả --</option>';
+            (readersRes.items || []).forEach(r => {
+                readerSelect.innerHTML += `<option value="${r.id}">${r.reader_code} - ${r.user.full_name} (${r.reader_type})</option>`;
+            });
+
+            bookSelect.innerHTML = '<option value="">-- Chọn sách có sẵn --</option>';
+            (booksRes.items || []).forEach(b => {
+                bookSelect.innerHTML += `<option value="${b.id}">${b.code} - ${b.title} [Còn ${b.available_quantity} bản]</option>`;
+            });
+        } catch(err) {
+            toast.error(`Lỗi tải danh mục: ${err.message}`);
+        }
+    }
+
+    async function createBorrow() {
+        const readerId = parseInt(document.getElementById('b-reader-select').value);
+        const bookId = parseInt(document.getElementById('b-book-select').value);
+        const notes = document.getElementById('b-notes').value;
+
+        if (!readerId || !bookId) { toast.warning('Vui lòng chọn cả độc giả và cuốn sách muốn mượn!'); return; }
+
+        const btn = document.getElementById('btn-submit-borrow');
+        setLoading(btn, true, 'Đang lập phiếu...');
+
+        try {
+            await borrowsAPI.create({ reader_id: readerId, book_id: bookId, notes });
+            toast.success('🎉 Lập phiếu mượn sách thành công!');
+            borrowModal.hide();
+            loadBorrows(1);
+        } catch(err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    function exportBorrows() {
+        const params = {};
+        if (currentTab === 'borrowing') params.status = 'borrowing';
+        else if (currentTab === 'overdue') params.status = 'overdue';
+        else if (currentTab === 'returned') params.status = 'returned';
+
+        toast.info('Đang xuất danh sách phiếu mượn ra file CSV...');
+        borrowsAPI.exportCSV(params);
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.getElementById('btn-new-borrow').onclick = openCreateBorrowModal;
+    loadBorrows(1);
+</script>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập · Hệ thống Quản lý Thư viện</title>
+    <meta name="description" content="Đăng nhập vào hệ thống quản lý thư viện thông minh tích hợp AI">
+    <link rel="stylesheet" href="/static/css/main.css">
+    <style>
+        body { background: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="login-page">
+    <!-- LEFT: Brand Panel -->
+    <div class="login-panel-left">
+        <div class="login-brand-logo">📚</div>
+
+        <h1>Thư Viện<br>Thông Minh</h1>
+        <p>Hệ thống quản lý thư viện hiện đại tích hợp trí tuệ nhân tạo — giúp tra cứu, gợi ý và tóm tắt sách ngay lập tức.</p>
+
+        <div class="login-features">
+            <div class="login-feature-item">
+                <div class="login-feature-dot">🤖</div>
+                Chatbot AI tra cứu bằng ngôn ngữ tự nhiên
+            </div>
+            <div class="login-feature-item">
+                <div class="login-feature-dot">📖</div>
+                Quản lý toàn bộ kho sách, tác giả, thể loại
+            </div>
+            <div class="login-feature-item">
+                <div class="login-feature-dot">🔄</div>
+                Mượn, trả, gia hạn và tính phạt tự động
+            </div>
+            <div class="login-feature-item">
+                <div class="login-feature-dot">📊</div>
+                Thống kê và báo cáo thư viện toàn diện
+            </div>
+            <div class="login-feature-item">
+                <div class="login-feature-dot">💾</div>
+                Sao lưu & khôi phục cơ sở dữ liệu an toàn
+            </div>
+        </div>
+
+        <!-- Version tag -->
+        <div style="margin-top:48px;position:relative;z-index:1;">
+            <span style="font-size:0.75rem;color:rgba(255,255,255,0.45);font-weight:500;letter-spacing:0.04em;">v1.0.0 · Python FastAPI · SQLite FTS5 · Groq AI</span>
+        </div>
+    </div>
+
+    <!-- RIGHT: Form Panel -->
+    <div class="login-panel-right">
+        <div class="login-form-container">
+            <div class="login-form-header">
+                <h2>Chào mừng trở lại 👋</h2>
+                <p>Đăng nhập để tiếp tục vào hệ thống</p>
+            </div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label class="form-label" for="username">Tên đăng nhập</label>
+                    <div class="input-group">
+                        <span class="input-prefix">👤</span>
+                        <input type="text" id="username" class="form-control"
+                               placeholder="Nhập tên đăng nhập" required autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">Mật khẩu</label>
+                    <div class="input-group">
+                        <span class="input-prefix">🔒</span>
+                        <input type="password" id="password" class="form-control"
+                               placeholder="Nhập mật khẩu" required autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div id="login-error" style="display:none;margin-bottom:14px;padding:10px 14px;background:#FEF2F2;border:1px solid #FECACA;border-radius:10px;font-size:0.8125rem;color:#DC2626;display:none;"></div>
+
+                <button type="submit" id="login-btn" class="btn btn-primary w-100 btn-lg" style="margin-top:4px;height:48px;font-size:0.9375rem;letter-spacing:-0.01em;">
+                    Đăng nhập
+                </button>
+            </form>
+
+            <!-- Demo accounts -->
+            <div class="demo-accounts">
+                <div class="demo-accounts-label">🎮 Tài khoản demo — click để điền nhanh</div>
+
+                <div class="demo-account-item" data-user="admin" data-pass="Admin@123">
+                    <div class="demo-account-icon" style="background:#EEF2FF;">🛡️</div>
+                    <div class="demo-account-info">
+                        <div class="demo-account-name">Quản trị viên (Admin)</div>
+                        <div class="demo-account-cred">admin / Admin@123</div>
+                    </div>
+                    <span style="color:#94A3B8;font-size:0.75rem;">→</span>
+                </div>
+
+                <div class="demo-account-item" data-user="thuhu01" data-pass="Thuhu@123">
+                    <div class="demo-account-icon" style="background:#ECFDF5;">📋</div>
+                    <div class="demo-account-info">
+                        <div class="demo-account-name">Thủ thư (Librarian)</div>
+                        <div class="demo-account-cred">thuhu01 / Thuhu@123</div>
+                    </div>
+                    <span style="color:#94A3B8;font-size:0.75rem;">→</span>
+                </div>
+
+                <div class="demo-account-item" data-user="docgia01" data-pass="Docgia@123">
+                    <div class="demo-account-icon" style="background:#FFF7ED;">🎓</div>
+                    <div class="demo-account-info">
+                        <div class="demo-account-name">Độc giả (Reader)</div>
+                        <div class="demo-account-cred">docgia01 / Docgia@123</div>
+                    </div>
+                    <span style="color:#94A3B8;font-size:0.75rem;">→</span>
+                </div>
+            </div>
+
+            <p style="text-align:center;font-size:0.75rem;color:var(--text-muted);margin-top:20px;">
+                Hệ thống Quản lý Thư viện tích hợp AI · Đồ án môn học
+            </p>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/api.js"></script>
+<script>
+    // Redirect nếu đã đăng nhập
+    if (isLoggedIn()) window.location.href = '/dashboard';
+
+    // Click demo account để điền nhanh
+    document.querySelectorAll('.demo-account-item').forEach(el => {
+        el.addEventListener('click', () => {
+            document.getElementById('username').value = el.dataset.user;
+            document.getElementById('password').value = el.dataset.pass;
+            document.getElementById('username').focus();
+        });
+    });
+
+    // Login form submit
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('login-btn');
+        const errorEl = document.getElementById('login-error');
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        errorEl.style.display = 'none';
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span>&nbsp; Đang đăng nhập...';
+
+        try {
+            const result = await authAPI.login(username, password);
+            localStorage.setItem('access_token', result.access_token);
+            localStorage.setItem('user_info', JSON.stringify(result.user));
+
+            btn.innerHTML = '✅ Thành công! Đang chuyển hướng...';
+            btn.style.background = '#10B981';
+            setTimeout(() => window.location.href = '/dashboard', 700);
+        } catch (err) {
+            errorEl.textContent = '⚠️ ' + (err.message || 'Tên đăng nhập hoặc mật khẩu không đúng');
+            errorEl.style.display = 'block';
+            btn.disabled = false;
+            btn.innerHTML = 'Đăng nhập';
+        }
+    });
+</script>
+</body>
+</html>

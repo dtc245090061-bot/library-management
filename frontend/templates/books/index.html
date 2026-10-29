@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Sách - Thư viện Thông Minh</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+<body>
+<div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-icon">📚</div>
+            <div class="sidebar-logo-text">Thư Viện<span>Smart Library System</span></div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-label">Tổng quan</div>
+            <a href="/dashboard" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></a>
+            <div class="nav-section-label">Quản lý</div>
+            <a href="/books" class="nav-item active" data-page="books"><span class="nav-icon">📖</span><span>Quản lý Sách</span></a>
+            <a href="/readers" class="nav-item" data-page="readers"><span class="nav-icon">👥</span><span>Độc giả</span></a>
+            <a href="/borrows" class="nav-item" data-page="borrows"><span class="nav-icon">🔄</span><span>Mượn / Trả</span></a>
+            <a href="/statistics" class="nav-item" data-page="statistics"><span class="nav-icon">📈</span><span>Thống kê</span></a>
+            <a href="/users" class="nav-item" id="nav-users-books" style="display:none;"><span class="nav-icon">🛡️</span><span>Tài khoản</span></a>
+            <div class="nav-section-label">AI Assistant</div>
+            <a href="/ai-chat" class="nav-item" data-page="ai-chat"><span class="nav-icon">🤖</span><span>Chatbot Tra cứu</span></a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info-card" onclick="logout()">
+                <div class="user-avatar" id="sidebar-user-avatar">?</div>
+                <div class="user-details">
+                    <div class="user-name" id="sidebar-user-name">Đang tải...</div>
+                    <div class="user-role" id="sidebar-user-role">—</div>
+                </div>
+                <span style="color:var(--text-muted);font-size:0.8rem;">→</span>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="top-header">
+            <h1 class="page-title">📖 Kho Sách Thư Viện</h1>
+            <div class="header-actions">
+                <!-- View Switcher -->
+                <div class="view-switcher">
+                    <button class="view-btn active" id="btn-view-table" onclick="setViewMode('table')" title="Xem dạng bảng">
+                        <span>📋 Bảng</span>
+                    </button>
+                    <button class="view-btn" id="btn-view-grid" onclick="setViewMode('grid')" title="Xem dạng lưới thẻ">
+                        <span>🎴 Thẻ sách</span>
+                    </button>
+                </div>
+                <button class="btn btn-outline" id="btn-export-books" onclick="exportBooks()" data-librarian-only>📥 Xuất CSV</button>
+                <button class="btn btn-primary" id="btn-add-book" data-librarian-only>➕ Thêm sách</button>
+            </div>
+        </header>
+
+        <div class="page-content">
+            <!-- AI Personalized Recommendation Banner (3.2.3 AI Gợi ý sách) -->
+            <div class="card" style="margin-bottom:16px;background:#FFFFFF;border:1px solid #E0E7FF;box-shadow:0 4px 14px -3px rgba(79,70,229,0.08);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,var(--primary) 0%,#8B5CF6 100%);display:flex;align-items:center;justify-content:center;font-size:1.35rem;color:#FFF;flex-shrink:0;box-shadow:0 4px 10px rgba(79,70,229,0.2);">
+                        🤖
+                    </div>
+                    <div>
+                        <div style="font-weight:700;font-size:0.92rem;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
+                            <span>Trợ lý AI: Gợi ý sách theo sở thích đọc</span>
+                            <span class="badge badge-purple" style="font-size:0.65rem;">Personalized AI</span>
+                        </div>
+                        <div style="font-size:0.78rem;color:var(--text-secondary);margin-top:2px;">
+                            Phân tích lịch sử mượn & thể loại yêu thích để đề xuất sách phù hợp từ kho thư viện
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <a href="/ai-chat" class="btn btn-outline btn-sm">💬 Chatbot tra cứu</a>
+                    <button class="btn btn-primary btn-sm" onclick="openAISuggestModal()">✨ Gợi ý cho tôi</button>
+                </div>
+            </div>
+
+            <!-- Search & Filter Card with SQLite FTS5 Support -->
+            <div class="card" style="margin-bottom:20px;padding:18px 20px;">
+                <div class="search-bar" style="margin-bottom:0;">
+                    <div class="search-input-wrap" style="flex:2;">
+                        <span class="search-icon" id="search-icon-indicator">🔍</span>
+                        <input type="text" id="search-keyword" class="form-control" placeholder="Tìm theo tên sách, tác giả, mã ISBN...">
+                    </div>
+                    <select id="filter-category" class="form-control" style="flex:1;max-width:200px;" onchange="searchBooks(1)">
+                        <option value="">Tất cả thể loại</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:600;color:var(--text-secondary);cursor:pointer;white-space:nowrap;user-select:none;">
+                        <input type="checkbox" id="filter-available" style="width:16px;height:16px;accent-color:var(--primary);" onchange="searchBooks(1)">
+                        🟢 Chỉ hiện sách còn
+                    </label>
+                    <button class="btn btn-primary" onclick="searchBooks(1)">Tìm kiếm</button>
+                    <button class="btn btn-outline" id="btn-fts-toggle" onclick="searchFTS5Books()" title="Tìm kiếm toàn văn SQLite FTS5 với thuật toán xếp hạng BM25">
+                        ⚡ FTS5 Toàn văn
+                    </button>
+                </div>
+
+                <!-- Active Search Mode Alert Badge -->
+                <div id="search-mode-badge" style="display:none;margin-top:10px;font-size:0.78rem;color:var(--primary);background:var(--primary-subtle);padding:6px 12px;border-radius:var(--radius-sm);align-items:center;justify-content:space-between;">
+                    <span id="search-mode-text">⚡ Đang sử dụng chế độ tìm kiếm toàn văn SQLite FTS5 (BM25 ranking)</span>
+                    <button class="btn btn-outline btn-xs" onclick="resetStandardSearch()" style="padding:2px 8px;font-size:0.72rem;">Quay lại tìm cơ bản</button>
+                </div>
+
+                <!-- Category Quick Chips -->
+                <div class="cat-chips-bar" id="category-chips" style="margin-top:12px;">
+                    <button class="cat-chip active" onclick="selectCategoryChip('', this)">Tất cả</button>
+                </div>
+            </div>
+
+            <!-- Content Area: Table View -->
+            <div class="card" id="view-table-container">
+                <div class="card-header">
+                    <h3 class="card-title">Danh sách sách</h3>
+                    <span id="books-count" class="badge badge-purple">—</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Mã sách</th>
+                                <th>Tên sách</th>
+                                <th>Tác giả</th>
+                                <th>Thể loại</th>
+                                <th>NXB / Năm</th>
+                                <th>Số lượng</th>
+                                <th>Tình trạng</th>
+                                <th style="text-align:right;">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="books-tbody">
+                            <tr><td colspan="8"><div class="loading-overlay"><div class="loading-spinner" style="width:32px;height:32px;"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="books-pagination" class="pagination" style="margin-top:16px;"></div>
+            </div>
+
+            <!-- Content Area: Grid View -->
+            <div id="view-grid-container" style="display:none;">
+                <div class="books-grid" id="books-grid">
+                    <!-- Book Cards injected here -->
+                </div>
+                <div id="books-grid-pagination" class="pagination" style="margin-top:20px;"></div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Add/Edit Book Modal -->
+<div class="modal-overlay" id="modal-book">
+    <div class="modal" style="max-width:640px;">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modal-book-title">Thêm sách mới</h3>
+            <button class="modal-close" id="btn-close-modal">✕</button>
+        </div>
+        <form id="book-form">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Mã sách *</label>
+                    <input type="text" id="f-code" class="form-control" placeholder="VD: CS001" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ISBN</label>
+                    <input type="text" id="f-isbn" class="form-control" placeholder="ISBN-13">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Tên sách *</label>
+                <input type="text" id="f-title" class="form-control" placeholder="Nhập tên sách..." required>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Tác giả *</label>
+                    <select id="f-author" class="form-control" required>
+                        <option value="">-- Chọn tác giả --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Thể loại *</label>
+                    <select id="f-category" class="form-control" required>
+                        <option value="">-- Chọn thể loại --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Nhà xuất bản</label>
+                    <input type="text" id="f-publisher" class="form-control" placeholder="NXB...">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Năm xuất bản</label>
+                    <input type="number" id="f-year" class="form-control" placeholder="2023" min="1900" max="2100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Số lượng *</label>
+                <input type="number" id="f-qty" class="form-control" value="1" min="1" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Mô tả / Giới thiệu sách</label>
+                <textarea id="f-desc" class="form-control" rows="4" placeholder="Mô tả tóm tắt nội dung sách..."></textarea>
+            </div>
+        </form>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="bookModal.hide()">Hủy</button>
+            <button class="btn btn-primary" id="btn-save-book" onclick="saveBook()">💾 Lưu thông tin sách</button>
+        </div>
+    </div>
+</div>
+
+<!-- Book Detail & AI Summarize Modal -->
+<div class="modal-overlay" id="modal-book-detail">
+    <div class="modal" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 class="modal-title">📖 Thông tin chi tiết sách</h3>
+            <button class="modal-close" onclick="detailModal.hide()">✕</button>
+        </div>
+        <div id="book-detail-content" style="padding:16px 20px;"></div>
+        <div class="modal-footer" style="justify-content:space-between;">
+            <button class="btn btn-outline" onclick="detailModal.hide()">Đóng</button>
+            <button class="btn btn-primary" id="btn-ai-summary" onclick="getAISummary()">🤖 Tóm tắt nội dung bằng AI</button>
+        </div>
+    </div>
+</div>
+
+<!-- AI Personalized Suggestion Modal (3.2.3 Gợi ý sách AI) -->
+<div class="modal-overlay" id="modal-ai-suggest">
+    <div class="modal" style="max-width:680px;">
+        <div class="modal-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--primary) 0%,#8B5CF6 100%);display:flex;align-items:center;justify-content:center;color:#FFF;font-size:1.1rem;box-shadow:0 2px 6px rgba(79,70,229,0.25);">🤖</div>
+                <h3 class="modal-title" style="margin:0;">Gợi ý Sách Cá Nhân Hóa bằng AI</h3>
+            </div>
+            <button class="modal-close" onclick="suggestModal.hide()">✕</button>
+        </div>
+        <div id="ai-suggest-modal-content" style="padding:20px;max-height:65vh;overflow-y:auto;">
+            <div class="loading-overlay"><div class="loading-spinner"></div><span>AI đang phân tích sở thích đọc sách...</span></div>
+        </div>
+        <div class="modal-footer" style="justify-content:space-between;">
+            <button class="btn btn-outline" onclick="suggestModal.hide()">Đóng</button>
+            <a href="/ai-chat" class="btn btn-primary">💬 Tiếp tục trao đổi qua Chatbot</a>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="/static/js/api.js"></script>
+<script src="/static/js/ui.js"></script>
+<script>
+    if (!requireAuth()) {}
+    populateSidebarUser();
+    if (hasRole('admin')) { const n = document.getElementById('nav-users-books'); if(n) n.style.display='flex'; }
+
+    const bookModal = new Modal('modal-book');
+    const detailModal = new Modal('modal-book-detail');
+    const suggestModal = new Modal('modal-ai-suggest');
+    document.getElementById('btn-close-modal').onclick = () => bookModal.hide();
+
+    let currentViewMode = 'table';
+    let currentPage = 1;
+    let currentBooksList = [];
+    let editingBookId = null;
+    let selectedBookId = null;
+    let categories = [], authors = [];
+
+    const isLibrarian = hasRole('admin', 'librarian');
+    if (!isLibrarian) {
+        document.getElementById('btn-add-book').style.display = 'none';
+    }
+
+    // View switcher
+    function setViewMode(mode) {
+        currentViewMode = mode;
+        const btnTable = document.getElementById('btn-view-table');
+        const btnGrid = document.getElementById('btn-view-grid');
+        const viewTable = document.getElementById('view-table-container');
+        const viewGrid = document.getElementById('view-grid-container');
+
+        if (mode === 'table') {
+            btnTable.classList.add('active');
+            btnGrid.classList.remove('active');
+            viewTable.style.display = 'block';
+            viewGrid.style.display = 'none';
+        } else {
+            btnGrid.classList.add('active');
+            btnTable.classList.remove('active');
+            viewTable.style.display = 'none';
+            viewGrid.style.display = 'block';
+        }
+        renderCurrentBooks();
+    }
+
+    // Category chips filter
+    function selectCategoryChip(catId, btn) {
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('filter-category').value = catId;
+        searchBooks(1);
+    }
+
+    // Load initial data
+    async function init() {
+        [categories, authors] = await Promise.all([
+            booksAPI.listCategories(),
+            booksAPI.listAuthors()
+        ]);
+        populateCategoryFilter();
+        populateFormSelects();
+        
+        // Highlight query param if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const highlightId = urlParams.get('highlight');
+
+        await searchBooks(1);
+
+        if (highlightId) {
+            showBookDetail(parseInt(highlightId));
+        }
+    }
+
+    function populateCategoryFilter() {
+        const sel = document.getElementById('filter-category');
+        const chipsContainer = document.getElementById('category-chips');
+        
+        categories.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id; opt.textContent = c.name;
+            sel.appendChild(opt);
+
+            const chip = document.createElement('button');
+            chip.className = 'cat-chip';
+            chip.textContent = c.name;
+            chip.onclick = () => selectCategoryChip(c.id, chip);
+            chipsContainer.appendChild(chip);
+        });
+    }
+
+    function populateFormSelects() {
+        const authorSel = document.getElementById('f-author');
+        const catSel = document.getElementById('f-category');
+        authors.forEach(a => { authorSel.innerHTML += `<option value="${a.id}">${a.name}</option>`; });
+        categories.forEach(c => { catSel.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+    }
+
+    async function searchBooks(page = 1) {
+        currentPage = page;
+        const tbody = document.getElementById('books-tbody');
+        showTableLoading(tbody, 8);
+
+        const params = { page, page_size: 15 };
+        const kw = document.getElementById('search-keyword').value.trim();
+        const cat = document.getElementById('filter-category').value;
+        const avail = document.getElementById('filter-available').checked;
+
+        if (kw) params.keyword = kw;
+        if (cat) params.category_id = cat;
+        if (avail) params.available_only = true;
+
+        try {
+            const result = await booksAPI.list(params);
+            document.getElementById('books-count').textContent = `${result.total} cuốn`;
+            currentBooksList = result.items || [];
+            renderCurrentBooks();
+
+            renderPagination(
+                document.getElementById('books-pagination'),
+                page, result.total, 15,
+                (p) => `searchBooks(${p})`
+            );
+            renderPagination(
+                document.getElementById('books-grid-pagination'),
+                page, result.total, 15,
+                (p) => `searchBooks(${p})`
+            );
+        } catch(err) {
+            toast.error(err.message);
+            showEmptyState(tbody, 'Lỗi tải dữ liệu', 8);
+        }
+    }
+
+    function renderCurrentBooks() {
+        if (currentViewMode === 'table') {
+            renderBooksTable(currentBooksList);
+        } else {
+            renderBooksGrid(currentBooksList);
+        }
+    }
+
+    function renderBooksTable(books) {
+        const tbody = document.getElementById('books-tbody');
+        if (!books.length) { showEmptyState(tbody, 'Không tìm thấy cuốn sách nào phù hợp', 8); return; }
+
+        tbody.innerHTML = books.map(b => {
+            const ftsBadge = (b.relevance_score !== undefined)
+                ? `<span class="badge badge-purple" style="font-size:0.68rem;margin-left:4px;" title="Điểm liên quan BM25 (SQLite FTS5)">⚡ BM25: ${b.relevance_score.toFixed(2)}</span>`
+                : '';
+
+            return `
+            <tr>
+                <td>
+                    <code style="background:rgba(79,70,229,0.08);color:var(--primary);font-weight:700;padding:3px 7px;border-radius:4px;font-size:0.78rem;">${escapeHtml(b.code)}</code>
+                    ${ftsBadge}
+                </td>
+                <td>
+                    <div style="font-weight:700;color:var(--text-primary);max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(b.title)}">${escapeHtml(b.title)}</div>
+                    ${b.isbn ? `<div style="font-size:0.72rem;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">ISBN: ${escapeHtml(b.isbn)}</div>` : ''}
+                </td>
+                <td style="color:var(--text-secondary);font-weight:500;">${escapeHtml(b.author?.name || b.author || '—')}</td>
+                <td><span class="badge badge-purple" style="font-weight:600;">${escapeHtml(b.category?.name || b.category || '—')}</span></td>
+                <td style="font-size:0.8rem;color:var(--text-muted);">${escapeHtml(b.publisher || '—')} ${b.publish_year ? `(${b.publish_year})` : ''}</td>
+                <td>
+                    <span style="font-weight:700;color:${b.available_quantity > 0 ? 'var(--success)' : 'var(--danger)'};">${b.available_quantity}</span><span style="color:var(--text-muted);font-size:0.8rem;">/${b.total_quantity}</span>
+                </td>
+                <td>${b.available_quantity > 0 ? '<span class="badge badge-success">🟢 Còn sách</span>' : '<span class="badge badge-danger">🔴 Hết sách</span>'}</td>
+                <td style="text-align:right;">
+                    <div style="display:inline-flex;gap:4px;flex-wrap:nowrap;">
+                        <button class="btn btn-sm btn-primary" onclick="quickSummarize(${b.id})" title="Tóm tắt nội dung bằng AI">🤖 Tóm tắt</button>
+                        <button class="btn btn-sm btn-outline" onclick="showBookDetail(${b.id})" title="Xem chi tiết">👁️ Chi tiết</button>
+                        ${isLibrarian ? `
+                        <button class="btn btn-sm btn-outline" onclick="editBook(${b.id})" title="Chỉnh sửa">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteBook(${b.id})" title="Xóa sách">🗑️</button>` : ''}
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderBooksGrid(books) {
+        const grid = document.getElementById('books-grid');
+        if (!books.length) {
+            grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;padding:40px;"><div class="empty-icon">📚</div><div>Không tìm thấy cuốn sách nào phù hợp</div></div>';
+            return;
+        }
+
+        grid.innerHTML = books.map(b => {
+            const availPercent = Math.round((b.available_quantity / (b.total_quantity || 1)) * 100);
+            const fillBg = b.available_quantity > 0 ? 'var(--success)' : 'var(--danger)';
+            const ftsBadge = (b.relevance_score !== undefined)
+                ? `<div style="margin-top:4px;"><span class="badge badge-purple" style="font-size:0.68rem;">⚡ BM25: ${b.relevance_score.toFixed(2)}</span></div>`
+                : '';
+
+            return `
+                <div class="book-card-item">
+                    <div class="book-card-cover">
+                        <div class="book-card-spine">📖</div>
+                        <div style="text-align:right;">
+                            <span class="badge ${b.available_quantity > 0 ? 'badge-success' : 'badge-danger'}">
+                                ${b.available_quantity > 0 ? '🟢 Còn sách' : '🔴 Hết sách'}
+                            </span>
+                            <div style="margin-top:6px;">
+                                <code style="font-size:0.74rem;background:#FFFFFF;border:1px solid var(--border);padding:2px 6px;border-radius:4px;color:var(--primary);font-weight:700;">${escapeHtml(b.code)}</code>
+                            </div>
+                            ${ftsBadge}
+                        </div>
+                    </div>
+                    <div class="book-card-body">
+                        <div>
+                            <div class="book-card-title">${escapeHtml(b.title)}</div>
+                            <div class="book-card-author">✍️ ${escapeHtml(b.author?.name || b.author || '—')}</div>
+                            <div style="margin-bottom:8px;">
+                                <span class="badge badge-purple" style="font-size:0.72rem;">🏷️ ${escapeHtml(b.category?.name || b.category || '—')}</span>
+                            </div>
+                            
+                            <div class="book-stock-bar">
+                                <div style="display:flex;justify-content:space-between;color:var(--text-muted);">
+                                    <span>Khả dụng: <strong>${b.available_quantity}/${b.total_quantity} bản</strong></span>
+                                    <span>${availPercent}%</span>
+                                </div>
+                                <div class="book-stock-bar-track">
+                                    <div class="book-stock-bar-fill" style="width:${availPercent}%;background:${fillBg};"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="book-card-footer" style="gap:6px;">
+                            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="quickSummarize(${b.id})" title="Tóm tắt nội dung bằng AI">
+                                🤖 Tóm tắt AI
+                            </button>
+                            <button class="btn btn-sm btn-outline" style="flex:1;" onclick="showBookDetail(${b.id})">
+                                👁️ Chi tiết
+                            </button>
+                            ${isLibrarian ? `
+                            <button class="btn btn-sm btn-outline" onclick="editBook(${b.id})" title="Sửa">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteBook(${b.id})" title="Xóa">🗑️</button>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function openAddModal() {
+        editingBookId = null;
+        document.getElementById('modal-book-title').textContent = '➕ Thêm sách mới vào thư viện';
+        document.getElementById('book-form').reset();
+        bookModal.show();
+    }
+
+    async function editBook(id) {
+        try {
+            const book = await booksAPI.get(id);
+            editingBookId = id;
+            document.getElementById('modal-book-title').textContent = '✏️ Chỉnh sửa thông tin sách';
+            document.getElementById('f-code').value = book.code;
+            document.getElementById('f-isbn').value = book.isbn || '';
+            document.getElementById('f-title').value = book.title;
+            document.getElementById('f-author').value = book.author.id;
+            document.getElementById('f-category').value = book.category.id;
+            document.getElementById('f-publisher').value = book.publisher || '';
+            document.getElementById('f-year').value = book.publish_year || '';
+            document.getElementById('f-qty').value = book.total_quantity;
+            document.getElementById('f-desc').value = book.description || '';
+            bookModal.show();
+        } catch(err) { toast.error(err.message); }
+    }
+
+    async function saveBook() {
+        const btn = document.getElementById('btn-save-book');
+        setLoading(btn, true, 'Đang lưu...');
+
+        const data = {
+            code: document.getElementById('f-code').value.trim(),
+            title: document.getElementById('f-title').value.trim(),
+            author_id: parseInt(document.getElementById('f-author').value),
+            category_id: parseInt(document.getElementById('f-category').value),
+            publisher: document.getElementById('f-publisher').value.trim() || null,
+            publish_year: parseInt(document.getElementById('f-year').value) || null,
+            isbn: document.getElementById('f-isbn').value.trim() || null,
+            total_quantity: parseInt(document.getElementById('f-qty').value),
+            description: document.getElementById('f-desc').value.trim() || null,
+        };
+
+        try {
+            if (editingBookId) {
+                await booksAPI.update(editingBookId, data);
+                toast.success('Cập nhật sách thành công!');
+            } else {
+                await booksAPI.create(data);
+                toast.success('Thêm sách thành công!');
+            }
+            bookModal.hide();
+            searchBooks(currentPage);
+        } catch(err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    async function deleteBook(id) {
+        const confirmed = await confirmAction('Bạn có chắc chắn muốn xóa cuốn sách này khỏi hệ thống không?');
+        if (!confirmed) return;
+        try {
+            await booksAPI.delete(id);
+            toast.success('Xóa sách thành công!');
+            searchBooks(currentPage);
+        } catch(err) { toast.error(err.message); }
+    }
+
+    async function showBookDetail(id) {
+        selectedBookId = id;
+        const content = document.getElementById('book-detail-content');
+        content.innerHTML = '<div class="loading-overlay" style="padding:30px;"><div class="loading-spinner"></div></div>';
+        detailModal.show();
+
+        try {
+            const book = await booksAPI.get(id);
+            const statusBadge = book.available_quantity > 0
+                ? `<span class="badge badge-success">📗 Còn sẵn ${book.available_quantity}/${book.total_quantity} bản</span>`
+                : `<span class="badge badge-danger">🔴 Đã hết sách (0/${book.total_quantity})</span>`;
+
+            const reserveBtnHTML = book.available_quantity === 0
+                ? `<button class="btn btn-warning btn-sm" style="margin-top:10px;" onclick="reserveBook(${book.id})">📌 Đặt trước sách này ngay</button>`
+                : '';
+
+            content.innerHTML = `
+                <div style="display:flex;gap:18px;margin-bottom:18px;">
+                    <div style="width:84px;height:104px;background:linear-gradient(135deg,var(--primary) 0%,#7C3AED 100%);border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:2.6rem;color:#FFFFFF;box-shadow:0 8px 16px rgba(79,70,229,0.25);flex-shrink:0;">📖</div>
+                    <div style="flex:1;">
+                        <h3 style="font-size:1.15rem;margin-bottom:4px;color:var(--text-primary);font-weight:800;">${escapeHtml(book.title)}</h3>
+                        <div style="color:var(--text-secondary);font-size:0.86rem;margin-bottom:8px;">✍️ <strong>Tác giả:</strong> ${escapeHtml(book.author.name)}</div>
+                        <div>${statusBadge}</div>
+                        ${reserveBtnHTML}
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:0.86rem;background:var(--bg-secondary);padding:12px 14px;border-radius:var(--radius-md);margin-bottom:16px;">
+                    <div><span class="text-muted">Mã sách:</span> <strong>${escapeHtml(book.code)}</strong></div>
+                    <div><span class="text-muted">Thể loại:</span> <strong>${escapeHtml(book.category.name)}</strong></div>
+                    <div><span class="text-muted">Nhà XB:</span> ${escapeHtml(book.publisher || '—')}</div>
+                    <div><span class="text-muted">Năm XB:</span> ${book.publish_year || '—'}</div>
+                    <div style="grid-column:1/-1;"><span class="text-muted">ISBN:</span> <code style="font-family:'JetBrains Mono',monospace;">${escapeHtml(book.isbn || '—')}</code></div>
+                </div>
+                ${book.description ? `
+                <div style="background:#FFFFFF;border-radius:var(--radius-md);padding:14px;border:1px solid var(--border);">
+                    <div style="font-size:0.75rem;color:var(--primary);margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;">📝 Mô tả / Giới thiệu</div>
+                    <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.7;margin:0;">${escapeHtml(book.description)}</p>
+                </div>` : ''}
+                <div id="ai-summary-result" style="margin-top:14px;"></div>`;
+        } catch(err) {
+            content.innerHTML = `<div class="empty-state"><div class="empty-icon">❌</div><div>${err.message}</div></div>`;
+        }
+    }
+
+    async function reserveBook(bookId) {
+        const confirmed = await confirmAction('Bạn có muốn đăng ký đặt trước cuốn sách này không? Thư viện sẽ giữ chỗ khi có sách.');
+        if (!confirmed) return;
+
+        try {
+            const readerMe = await readersAPI.getMe().catch(() => null);
+            if (!readerMe) {
+                toast.error('Bạn cần có thẻ độc giả đang hoạt động để đặt trước sách!');
+                return;
+            }
+            await reservationsAPI.create({ reader_id: readerMe.id, book_id: bookId });
+            toast.success('🎉 Đặt trước sách thành công!');
+            detailModal.hide();
+        } catch(err) {
+            toast.error(err.message);
+        }
+    }
+
+    function exportBooks() {
+        const params = {};
+        const kw = document.getElementById('search-keyword').value.trim();
+        const cat = document.getElementById('filter-category').value;
+        const avail = document.getElementById('filter-available').checked;
+
+        if (kw) params.keyword = kw;
+        if (cat) params.category_id = cat;
+        if (avail) params.available_only = true;
+
+        toast.info('Đang xuất danh sách sách ra CSV...');
+        booksAPI.exportCSV(params);
+    }
+
+    async function getAISummary() {
+        if (!selectedBookId) return;
+        const btn = document.getElementById('btn-ai-summary');
+        const resultEl = document.getElementById('ai-summary-result');
+        setLoading(btn, true, 'AI đang tóm tắt...');
+        resultEl.innerHTML = `<div class="loading-overlay" style="padding:16px;"><div class="loading-spinner"></div><span style="font-size:0.82rem;">Gemini AI đang phân tích và đúc kết nội dung sách...</span></div>`;
+
+        try {
+            const result = await aiAPI.summarize(selectedBookId);
+            const sourceTag = result.source === 'mock' 
+                ? '<span class="badge badge-warning" style="font-size:0.65rem;">Smart Local AI</span>' 
+                : '<span class="badge badge-success" style="font-size:0.65rem;">Gemini AI</span>';
+            resultEl.innerHTML = `
+                <div style="background:rgba(79,70,229,0.04);border:1px solid rgba(79,70,229,0.2);border-radius:var(--radius-md);padding:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <span>🤖</span><strong style="font-size:0.88rem;color:var(--primary);">Tóm tắt bằng AI</strong>
+                        </div>
+                        ${sourceTag}
+                    </div>
+                    <div style="font-size:0.85rem;line-height:1.75;color:var(--text-secondary);">${formatAIResponse(result.summary)}</div>
+                </div>`;
+        } catch(err) {
+            resultEl.innerHTML = `<div class="form-error">Lỗi: ${err.message}</div>`;
+        } finally {
+            setLoading(btn, false);
+        }
+    }
+
+    // Quick AI Summarize from row or card button (3.2.2 AI Tóm tắt sách)
+    async function quickSummarize(bookId) {
+        selectedBookId = bookId;
+        detailModal.show();
+        await showBookDetail(bookId);
+        getAISummary();
+    }
+
+    // SQLite FTS5 Full-Text Search (Mục 4 Yêu cầu kỹ thuật)
+    async function searchFTS5Books() {
+        const kw = document.getElementById('search-keyword').value.trim();
+        if (!kw) {
+            toast.warning('Vui lòng nhập từ khóa để tìm kiếm toàn văn FTS5 (VD: trí tuệ, machine learning, python...)');
+            document.getElementById('search-keyword').focus();
+            return;
+        }
+        const tbody = document.getElementById('books-tbody');
+        showTableLoading(tbody, 8);
+        document.getElementById('search-mode-badge').style.display = 'flex';
+        document.getElementById('search-mode-text').textContent = `⚡ Chế độ tìm kiếm toàn văn SQLite FTS5 (BM25 ranking) với từ khóa: "${kw}"`;
+        const btnToggle = document.getElementById('btn-fts-toggle');
+        btnToggle.classList.add('btn-primary');
+        btnToggle.classList.remove('btn-outline');
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const res = await fetch(`/api/books/fts/search?q=${encodeURIComponent(kw)}&limit=30`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Lỗi truy vấn FTS5');
+            const data = await res.json();
+            currentBooksList = data.items || [];
+            document.getElementById('books-count').textContent = `${data.total} kết quả (FTS5 BM25)`;
+            renderCurrentBooks();
+            document.getElementById('books-pagination').innerHTML = '';
+            document.getElementById('books-grid-pagination').innerHTML = '';
+            toast.info(`Tìm thấy ${data.total} cuốn sách khớp toàn văn FTS5!`);
+        } catch(err) {
+            toast.error('Lỗi tìm kiếm FTS5: ' + err.message);
+            showEmptyState(tbody, 'Không tìm thấy kết quả FTS5', 8);
+        }
+    }
+
+    function resetStandardSearch() {
+        document.getElementById('search-mode-badge').style.display = 'none';
+        const btnToggle = document.getElementById('btn-fts-toggle');
+        btnToggle.classList.remove('btn-primary');
+        btnToggle.classList.add('btn-outline');
+        searchBooks(1);
+    }
+
+    // AI Personalized Recommendation Modal (3.2.3 AI Gợi ý sách)
+    async function openAISuggestModal() {
+        suggestModal.show();
+        const container = document.getElementById('ai-suggest-modal-content');
+        container.innerHTML = `
+            <div class="loading-overlay" style="padding:24px;">
+                <div class="loading-spinner"></div>
+                <div style="font-size:0.86rem;color:var(--text-secondary);margin-top:8px;">
+                    AI đang đối soát lịch sử đọc và phân tích thể loại yêu thích để đưa ra danh mục phù hợp...
+                </div>
+            </div>`;
+
+        try {
+            const token = localStorage.getItem('access_token');
+            const meRes = await fetch('/api/readers/me', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!meRes.ok) {
+                container.innerHTML = `
+                    <div style="text-align:center;padding:24px;">
+                        <div style="font-size:2.5rem;margin-bottom:10px;">🎓</div>
+                        <h4 style="color:var(--text-primary);margin-bottom:8px;">Tính năng dành cho Độc giả có Thẻ thư viện</h4>
+                        <p style="font-size:0.85rem;color:var(--text-secondary);max-width:440px;margin:0 auto 16px auto;line-height:1.6;">
+                            Bạn hiện đang đăng nhập bằng tài khoản Quản trị / Thủ thư hoặc tài khoản chưa cấp thẻ độc giả. Bạn có thể sử dụng Trợ lý Chatbot AI để tra cứu hoặc chọn độc giả để xem gợi ý.
+                        </p>
+                        <a href="/ai-chat" class="btn btn-primary">💬 Mở Trợ lý Chatbot Tra Cứu AI</a>
+                    </div>`;
+                return;
+            }
+            const reader = await meRes.json();
+            const suggestRes = await fetch(`/api/ai/suggest?reader_id=${reader.id}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!suggestRes.ok) throw new Error('Không thể lấy dữ liệu gợi ý từ AI');
+            const data = await suggestRes.json();
+
+            container.innerHTML = `
+                <div style="background:var(--primary-subtle);border:1px solid #C7D2FE;border-radius:var(--radius-md);padding:14px;margin-bottom:16px;">
+                    <div style="font-size:0.84rem;font-weight:700;color:var(--primary);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                        <span>👤</span> Độc giả: ${escapeHtml(reader.user?.full_name || reader.reader_code)} (Mã thẻ: ${escapeHtml(reader.reader_code)})
+                    </div>
+                    <div style="font-size:0.78rem;color:var(--text-secondary);">
+                        Tổng lượt mượn: <strong>${reader.total_borrowed_count || 0}</strong> cuốn | Trạng thái thẻ: <span class="badge badge-success">HOẠT ĐỘNG</span>
+                    </div>
+                </div>
+                <div style="background:#FFFFFF;border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;line-height:1.75;font-size:0.86rem;color:var(--text-primary);box-shadow:var(--shadow-xs);">
+                    ${formatAIResponse(data.suggestion || data.response || '')}
+                </div>
+                ${data.suggested_books && data.suggested_books.length ? `
+                    <div style="margin-top:16px;">
+                        <div style="font-size:0.85rem;font-weight:700;color:var(--text-primary);margin-bottom:10px;">📚 Sách được AI đề xuất cho bạn:</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));gap:10px;">
+                            ${data.suggested_books.map(b => `
+                                <div class="ai-book-card">
+                                    <div class="ai-book-header">
+                                        <span class="ai-book-code">${escapeHtml(b.code || '')}</span>
+                                        <span class="badge ${b.available_quantity > 0 ? 'badge-success' : 'badge-danger'}">
+                                            ${b.available_quantity > 0 ? `Còn ${b.available_quantity} bản` : 'Tạm hết'}
+                                        </span>
+                                    </div>
+                                    <div style="font-weight:700;font-size:0.86rem;color:var(--text-primary);">${escapeHtml(b.title || '')}</div>
+                                    <div style="font-size:0.75rem;color:var(--text-muted);">✍️ ${escapeHtml(b.author || '')} | 🏷️ ${escapeHtml(b.category || '')}</div>
+                                    <button class="btn btn-outline btn-xs" style="margin-top:6px;" onclick="suggestModal.hide(); showBookDetail(${b.id || b.book_id})">
+                                        👁️ Xem chi tiết sách
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>` : ''}
+            `;
+        } catch(err) {
+            container.innerHTML = `<div class="form-error">Lỗi: ${err.message}</div>`;
+        }
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        return String(text).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    document.getElementById('btn-add-book').onclick = openAddModal;
+    document.getElementById('search-keyword').addEventListener('keyup', e => { if (e.key === 'Enter') searchBooks(1); });
+
+    init();
+</script>
+</body>
+</html>
